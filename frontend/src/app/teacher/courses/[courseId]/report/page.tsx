@@ -127,7 +127,7 @@ export default function CourseReportPage() {
                                             <tr key={s.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                                                 <th scope="row" className="p-4 sticky left-0 bg-white text-left font-normal">
                                                     <div className="flex items-center gap-3">
-                                                        <span className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-fuchsia-500 text-white font-[Tahoma,'Leelawadee_UI',Thonburi,sans-serif] font-bold flex items-center justify-center shrink-0">{s.name.charAt(0)}</span>
+                                                        <span className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-accent-500 text-white font-[Tahoma,'Leelawadee_UI',Thonburi,sans-serif] font-bold flex items-center justify-center shrink-0">{s.name.charAt(0)}</span>
                                                         <div className="min-w-0">
                                                             <div className="font-semibold text-ink truncate">{s.name}</div>
                                                             <div className="text-xs text-slate-400 truncate">{s.email}</div>

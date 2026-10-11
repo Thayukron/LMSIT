@@ -6,6 +6,7 @@ import { apiFetch, ApiError } from '@/lib/api';
 import type { User } from '@/lib/types';
 import Logo from '@/components/Logo';
 import { Alert, Button, inputClass } from '@/components/ui';
+import ThemePicker from '@/components/ThemePicker';
 
 type Mode = 'login' | 'register';
 
@@ -39,7 +40,7 @@ function BrandPanel() {
         { icon: <Trophy size={18} />, text: 'ทำแบบทดสอบ รู้ผลทันที พร้อมเฉลยละเอียด' },
     ];
     return (
-        <div className="hidden lg:flex relative flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-fuchsia-600 p-12 text-white">
+        <div className="hidden lg:flex relative flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-accent-600 p-12 text-white">
             <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/10 blur-2xl" aria-hidden="true" />
             <div className="absolute bottom-0 left-0 w-full h-1/2 bg-dots opacity-20" aria-hidden="true" />
             <Logo light />
@@ -55,8 +56,8 @@ function BrandPanel() {
                 </ul>
             </div>
             <div className="relative grid grid-cols-4 gap-3" aria-hidden="true">
-                {['🤝', '🎯', '💡', '🎮'].map((e, i) => (
-                    <div key={e} className="aspect-square rounded-2xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center text-3xl animate-float" style={{ animationDelay: `${i * 0.4}s` }}>{e}</div>
+                {['🤝', '🎯', '💡', '🎮'].map(e => (
+                    <div key={e} className="aspect-square rounded-2xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center text-3xl">{e}</div>
                 ))}
             </div>
         </div>
@@ -156,7 +157,10 @@ export default function AuthForm({ mode }: { mode: Mode }) {
                         )}
                     </div>
                 </div>
-                <p className="text-center text-xs text-slate-400 mt-8"><Link href="/" className="hover:text-slate-600">← กลับหน้าแรก</Link></p>
+                <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+                    <Link href="/" className="text-xs text-slate-400 hover:text-slate-600">← กลับหน้าแรก</Link>
+                    <ThemePicker label={false} />
+                </div>
             </div>
         </div>
     );

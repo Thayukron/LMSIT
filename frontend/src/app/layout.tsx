@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Anuphan, Prompt } from "next/font/google";
-import { BRAND } from "@/lib/brand";
+import { BRAND, DEFAULT_THEME, THEME_STORAGE_KEY } from "@/lib/brand";
 import "./globals.css";
 
 // Anuphan: เนื้อหา/UI ทั่วไป | Prompt: หัวข้อใหญ่
@@ -23,9 +23,15 @@ export const metadata: Metadata = {
   description: BRAND.description,
 };
 
+// ตั้งธีมสีที่ผู้ใช้เลือกไว้ก่อนหน้าเว็บแสดงผล (กันสีกระพริบตอนโหลด)
+const themeScript = `try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(t)document.documentElement.dataset.theme=t}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="th" className={`${anuphan.variable} ${prompt.variable} h-full`}>
+    <html lang="th" data-theme={DEFAULT_THEME} className={`${anuphan.variable} ${prompt.variable} h-full`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col font-sans">{children}</body>
     </html>
   );

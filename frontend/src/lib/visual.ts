@@ -1,13 +1,13 @@
 // ข้อมูลด้านภาพที่ใช้ร่วมกันหลายหน้า: สีปกวิชา และรายละเอียดสไตล์การเรียน
 
-// สีปกวิชา — เลือกจาก id ให้แต่ละวิชามีสีประจำตัวคงที่
+// สีปกวิชา — ไล่เฉดจากสีของธีมที่เลือก (เปลี่ยนตามธีม) เลือกแบบจาก id ให้แต่ละวิชาต่างกันเล็กน้อย
 const COVERS = [
-    { gradient: 'from-violet-500 via-fuchsia-500 to-pink-500', emoji: '🚀' },
-    { gradient: 'from-sky-500 via-cyan-500 to-teal-400', emoji: '🌊' },
-    { gradient: 'from-amber-400 via-orange-500 to-rose-500', emoji: '🔥' },
-    { gradient: 'from-emerald-400 via-teal-500 to-cyan-600', emoji: '🌿' },
-    { gradient: 'from-indigo-500 via-blue-500 to-sky-400', emoji: '💡' },
-    { gradient: 'from-rose-400 via-pink-500 to-purple-600', emoji: '🎯' },
+    { gradient: 'from-brand-600 via-brand-500 to-accent-500', emoji: '🚀' },
+    { gradient: 'from-accent-500 to-brand-600', emoji: '💡' },
+    { gradient: 'from-brand-700 to-brand-400', emoji: '🎯' },
+    { gradient: 'from-brand-500 via-accent-500 to-warm-400', emoji: '🔥' },
+    { gradient: 'from-accent-600 via-accent-400 to-warm-300', emoji: '🌿' },
+    { gradient: 'from-brand-800 via-brand-600 to-accent-500', emoji: '🌊' },
 ];
 
 export const courseCover = (id: number) => COVERS[Math.abs(id) % COVERS.length];
@@ -31,8 +31,8 @@ export const LEARNING_STYLES = [
         emoji: '🎯',
         description: 'ตรงประเด็น ประหยัดเวลา เหมาะกับทบทวนก่อนสอบ',
         tags: ['กระชับ', 'อ่านเร็ว'],
-        gradient: 'from-violet-500 to-brand-600',
-        soft: 'bg-brand-50 text-brand-700',
+        gradient: 'from-violet-500 to-purple-600',
+        soft: 'bg-violet-50 text-violet-700',
     },
     {
         id: 'example_based',

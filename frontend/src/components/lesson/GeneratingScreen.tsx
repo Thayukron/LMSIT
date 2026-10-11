@@ -24,7 +24,7 @@ export default function GeneratingScreen({ styleName, emoji, gradient }: { style
         <div className="max-w-xl mx-auto py-10 sm:py-16 text-center animate-fade-up" role="status" aria-live="polite">
             <div className="relative mx-auto w-32 h-32">
                 <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${gradient} blur-2xl opacity-60 animate-pulse`} />
-                <div className={`relative w-32 h-32 rounded-[2rem] bg-gradient-to-br ${gradient} flex items-center justify-center text-6xl shadow-lift animate-float`}>
+                <div className={`relative w-32 h-32 rounded-[2rem] bg-gradient-to-br ${gradient} flex items-center justify-center text-6xl shadow-lift`}>
                     {emoji}
                 </div>
             </div>

@@ -15,7 +15,7 @@ export default function QuickCheckCard({ check }: { check: QuickCheck }) {
     const correct = picked === check.answer_index;
 
     return (
-        <aside className="rounded-3xl bg-gradient-to-br from-brand-600 to-fuchsia-600 p-[2px] shadow-lift">
+        <aside className="rounded-3xl bg-gradient-to-br from-brand-600 to-accent-600 p-[2px] shadow-lift">
             <div className="rounded-[calc(1.5rem-2px)] bg-white p-6 sm:p-8">
                 <div className="flex items-center gap-2 text-brand-700 text-sm font-bold">
                     <span className="w-8 h-8 rounded-xl bg-brand-50 flex items-center justify-center"><Brain size={17} /></span>

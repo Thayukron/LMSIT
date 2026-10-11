@@ -25,7 +25,7 @@ function ReadingProgress() {
     }, []);
     return (
         <div className="fixed top-16 inset-x-0 h-1 z-30 bg-transparent" aria-hidden="true">
-            <div className="h-full bg-gradient-to-r from-brand-500 via-fuchsia-500 to-orange-400 transition-[width] duration-150" style={{ width: `${progress}%` }} />
+            <div className="h-full bg-gradient-to-r from-brand-500 via-accent-500 to-warm-400 transition-[width] duration-150" style={{ width: `${progress}%` }} />
         </div>
     );
 }
@@ -120,7 +120,7 @@ export default function LessonReader({ content, style, moduleInfo, hasQuiz, onCh
                             <ol className="mt-6 space-y-4">
                                 {content.key_points.map((p, i) => (
                                     <li key={i} className="flex gap-4">
-                                        <span className="font-display text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-brand-300 to-fuchsia-300 shrink-0 w-8">{String(i + 1).padStart(2, '0')}</span>
+                                        <span className="font-display text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-brand-300 to-accent-300 shrink-0 w-8">{String(i + 1).padStart(2, '0')}</span>
                                         <span className="text-white/90 leading-7 pt-1 [&_strong]:text-white"><InlineMarkdown>{p}</InlineMarkdown></span>
                                     </li>
                                 ))}
@@ -128,7 +128,7 @@ export default function LessonReader({ content, style, moduleInfo, hasQuiz, onCh
                         </section>
                     )}
 
-                    <section className="rounded-3xl bg-gradient-to-br from-brand-50 via-white to-fuchsia-50 ring-1 ring-brand-100 p-6 sm:p-10 text-center">
+                    <section className="rounded-3xl bg-gradient-to-br from-brand-50 via-white to-accent-50 ring-1 ring-brand-100 p-6 sm:p-10 text-center">
                         <div className="text-5xl" aria-hidden="true">🏁</div>
                         <h2 className="mt-4 text-2xl font-bold text-ink">อ่านจบแล้ว เก่งมาก!</h2>
                         {content.closing && <p className="mt-3 text-slate-600 max-w-xl mx-auto leading-7"><InlineMarkdown>{content.closing}</InlineMarkdown></p>}

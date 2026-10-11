@@ -7,38 +7,180 @@
   --font-display: var(--font-prompt), var(--font-anuphan), ui-sans-serif, sans-serif;
 }
 
-@theme {
-  /* สีหลักของแบรนด์ (ม่วงคราม) */
-  --color-brand-50: #f4f2ff;
-  --color-brand-100: #ebe7ff;
-  --color-brand-200: #d9d1ff;
-  --color-brand-300: #bcadff;
-  --color-brand-400: #9b80ff;
-  --color-brand-500: #7c55fb;
-  --color-brand-600: #6a35f1;
-  --color-brand-700: #5a25d8;
-  --color-brand-800: #4b20b0;
-  --color-brand-900: #3f1e8f;
-  --color-brand-950: #260f5e;
+/* ---------- ธีมสี ----------
+   เปลี่ยนธีมด้วย <html data-theme="..."> (เลือกได้จากเมนูผู้ใช้)
+   brand = สีหลัก, accent = สีรองที่ใช้ไล่เฉด, warm = สีอุ่นปลายเฉด */
+:root,
+[data-theme="violet"] {
+  --brand-50: #f4f2ff;
+  --brand-100: #ebe7ff;
+  --brand-200: #d9d1ff;
+  --brand-300: #bcadff;
+  --brand-400: #9b80ff;
+  --brand-500: #7c55fb;
+  --brand-600: #6a35f1;
+  --brand-700: #5a25d8;
+  --brand-800: #4b20b0;
+  --brand-900: #3f1e8f;
+  --brand-950: #260f5e;
+  --accent-100: #fae8ff;
+  --accent-200: #f5d0fe;
+  --accent-300: #f0abfc;
+  --accent-400: #e879f9;
+  --accent-500: #d946ef;
+  --accent-600: #c026d3;
+  --warm-300: #fdba74;
+  --warm-400: #fb923c;
+  --warm-500: #f97316;
+}
+[data-theme="ocean"] {
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+  --brand-950: #172554;
+  --accent-100: #cffafe;
+  --accent-200: #a5f3fc;
+  --accent-300: #67e8f9;
+  --accent-400: #22d3ee;
+  --accent-500: #06b6d4;
+  --accent-600: #0891b2;
+  --warm-300: #6ee7b7;
+  --warm-400: #34d399;
+  --warm-500: #10b981;
+}
+[data-theme="emerald"] {
+  --brand-50: #ecfdf5;
+  --brand-100: #d1fae5;
+  --brand-200: #a7f3d0;
+  --brand-300: #6ee7b7;
+  --brand-400: #34d399;
+  --brand-500: #10b981;
+  --brand-600: #059669;
+  --brand-700: #047857;
+  --brand-800: #065f46;
+  --brand-900: #064e3b;
+  --brand-950: #022c22;
+  --accent-100: #ccfbf1;
+  --accent-200: #99f6e4;
+  --accent-300: #5eead4;
+  --accent-400: #2dd4bf;
+  --accent-500: #14b8a6;
+  --accent-600: #0d9488;
+  --warm-300: #fde047;
+  --warm-400: #facc15;
+  --warm-500: #eab308;
+}
+[data-theme="sunset"] {
+  --brand-50: #fff7ed;
+  --brand-100: #ffedd5;
+  --brand-200: #fed7aa;
+  --brand-300: #fdba74;
+  --brand-400: #fb923c;
+  --brand-500: #f97316;
+  --brand-600: #ea580c;
+  --brand-700: #c2410c;
+  --brand-800: #9a3412;
+  --brand-900: #7c2d12;
+  --brand-950: #431407;
+  --accent-100: #ffe4e6;
+  --accent-200: #fecdd3;
+  --accent-300: #fda4af;
+  --accent-400: #fb7185;
+  --accent-500: #f43f5e;
+  --accent-600: #e11d48;
+  --warm-300: #fde68a;
+  --warm-400: #fcd34d;
+  --warm-500: #fbbf24;
+}
+[data-theme="rose"] {
+  --brand-50: #fff1f2;
+  --brand-100: #ffe4e6;
+  --brand-200: #fecdd3;
+  --brand-300: #fda4af;
+  --brand-400: #fb7185;
+  --brand-500: #f43f5e;
+  --brand-600: #e11d48;
+  --brand-700: #be123c;
+  --brand-800: #9f1239;
+  --brand-900: #881337;
+  --brand-950: #4c0519;
+  --accent-100: #fce7f3;
+  --accent-200: #fbcfe8;
+  --accent-300: #f9a8d4;
+  --accent-400: #f472b6;
+  --accent-500: #ec4899;
+  --accent-600: #db2777;
+  --warm-300: #fdba74;
+  --warm-400: #fb923c;
+  --warm-500: #f97316;
+}
+[data-theme="mono"] {
+  --brand-50: #f6f6f7;
+  --brand-100: #ececee;
+  --brand-200: #dcdce0;
+  --brand-300: #b9b9c0;
+  --brand-400: #8d8d96;
+  --brand-500: #5d5d66;
+  --brand-600: #27272a;
+  --brand-700: #18181b;
+  --brand-800: #111113;
+  --brand-900: #09090b;
+  --brand-950: #000000;
+  --accent-100: #f4f4f5;
+  --accent-200: #e4e4e7;
+  --accent-300: #a1a1aa;
+  --accent-400: #71717a;
+  --accent-500: #52525b;
+  --accent-600: #3f3f46;
+  --warm-300: #fcd34d;
+  --warm-400: #fbbf24;
+  --warm-500: #f59e0b;
+}
 
+@theme inline {
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
+  --color-accent-300: var(--accent-300);
+  --color-accent-400: var(--accent-400);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-warm-300: var(--warm-300);
+  --color-warm-400: var(--warm-400);
+  --color-warm-500: var(--warm-500);
+}
+
+@theme {
   --color-canvas: #f6f6fb;
   --color-ink: #12112a;
 
   --shadow-soft: 0 1px 2px rgb(18 17 42 / 0.04), 0 8px 24px -8px rgb(18 17 42 / 0.08);
-  --shadow-lift: 0 2px 4px rgb(18 17 42 / 0.04), 0 20px 40px -12px rgb(76 29 149 / 0.25);
+  --shadow-lift: 0 2px 4px rgb(18 17 42 / 0.04), 0 20px 40px -12px color-mix(in srgb, var(--brand-900) 25%, transparent);
 
   --animate-fade-up: fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  --animate-float: float 6s ease-in-out infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-pop: pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
   }
   @keyframes shimmer {
     from { background-position: -400px 0; }
@@ -57,6 +199,7 @@ html {
 
 body {
   background: var(--color-canvas);
+  transition: background-color 0.3s;
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
 }
@@ -72,7 +215,7 @@ h1, h2, h3, .font-display {
 
 /* ---------- Utilities ---------- */
 @utility text-gradient {
-  background-image: linear-gradient(100deg, var(--color-brand-600), #d946ef 55%, #f97316);
+  background-image: linear-gradient(100deg, var(--brand-600), var(--accent-500) 55%, var(--warm-500));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

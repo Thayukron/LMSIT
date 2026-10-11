@@ -3,13 +3,14 @@ import Logo from '@/components/Logo';
 import { Button } from '@/components/ui';
 import { LEARNING_STYLES } from '@/lib/visual';
 import { BRAND } from '@/lib/brand';
+import ThemePicker from '@/components/ThemePicker';
 
 // หน้าแรกสำหรับผู้ที่ยังไม่ login (ผู้ที่ login แล้วจะถูก proxy.ts พาไปหน้าหลักของตัวเอง)
 
 function HeroPreview() {
     return (
         <div className="relative mx-auto w-full max-w-md lg:max-w-none" aria-hidden="true">
-            <div className="absolute -inset-10 bg-gradient-to-tr from-brand-400/30 via-fuchsia-400/20 to-orange-300/30 blur-3xl rounded-full" />
+            <div className="absolute -inset-10 bg-gradient-to-tr from-brand-400/30 via-accent-400/20 to-warm-300/30 blur-3xl rounded-full" />
             {/* การ์ดบทเรียนจำลอง */}
             <div className="relative rounded-3xl bg-white shadow-lift ring-1 ring-slate-200/70 overflow-hidden animate-fade-up">
                 <div className="bg-gradient-to-br from-sky-400 to-cyan-500 p-6 text-white">
@@ -33,11 +34,11 @@ function HeroPreview() {
                 </div>
             </div>
             {/* ป้ายลอย */}
-            <div className="absolute -left-3 sm:-left-8 -bottom-8 rounded-2xl bg-white shadow-lift ring-1 ring-slate-200/70 px-4 py-3 flex items-center gap-3 animate-float">
+            <div className="absolute -left-3 sm:-left-8 -bottom-8 rounded-2xl bg-white shadow-lift ring-1 ring-slate-200/70 px-4 py-3 flex items-center gap-3">
                 <span className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Trophy size={18} /></span>
                 <div className="leading-tight"><div className="text-xs text-slate-400">ผลสอบ</div><div className="font-bold text-ink">9/10 · ผ่าน 🎉</div></div>
             </div>
-            <div className="absolute -right-3 sm:-right-8 -top-8 rounded-2xl bg-white shadow-lift ring-1 ring-slate-200/70 px-4 py-3 flex items-center gap-3 animate-float [animation-delay:1.5s]">
+            <div className="absolute -right-3 sm:-right-8 -top-8 rounded-2xl bg-white shadow-lift ring-1 ring-slate-200/70 px-4 py-3 flex items-center gap-3">
                 <span className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center"><Sparkles size={18} /></span>
                 <div className="leading-tight"><div className="text-xs text-slate-400">AI สร้างบทเรียน</div><div className="font-bold text-ink">4 สไตล์</div></div>
             </div>
@@ -133,7 +134,7 @@ export default function LandingPage() {
                     {STEPS.map((step, i) => (
                         <li key={step.title} className="relative rounded-3xl bg-white p-8 ring-1 ring-slate-200/70 shadow-soft">
                             <span className="absolute top-6 right-7 font-display text-6xl font-extrabold text-slate-100">{i + 1}</span>
-                            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-fuchsia-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/30">{step.icon}</div>
+                            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/30">{step.icon}</div>
                             <h3 className="relative mt-6 text-xl font-bold text-ink">{step.title}</h3>
                             <p className="relative mt-2 text-slate-500 leading-7">{step.text}</p>
                         </li>
@@ -175,6 +176,7 @@ export default function LandingPage() {
             <footer className="border-t border-slate-200/70 py-8">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
                     <Logo />
+                    <ThemePicker label={false} />
                     <span>© {BRAND.name} · {BRAND.tagline}</span>
                 </div>
             </footer>

@@ -115,7 +115,7 @@ export default function QuizPage() {
                         <Card className="relative overflow-hidden p-8 sm:p-12 text-center animate-fade-up">
                             <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-brand-50 to-transparent" aria-hidden="true" />
                             <div className="relative">
-                                <div className="mx-auto w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-500 to-fuchsia-500 text-white flex items-center justify-center shadow-lift animate-float">
+                                <div className="mx-auto w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-500 to-accent-500 text-white flex items-center justify-center shadow-lift">
                                     <ClipboardCheck size={36} />
                                 </div>
                                 <div className="mt-6 text-sm font-semibold text-brand-600">แบบทดสอบท้ายบทเรียน</div>
@@ -179,7 +179,7 @@ export default function QuizPage() {
                         return (
                             <button key={k} type="button" role="radio" aria-checked={isSelected} onClick={() => choose(k)}
                                 className={cx('group flex items-center gap-4 rounded-2xl px-5 py-4 text-left ring-2 transition-all',
-                                    isSelected ? 'ring-brand-500 bg-brand-50 shadow-[0_8px_24px_-12px_rgb(106_53_241/0.5)]' : 'ring-slate-200 hover:ring-brand-300 hover:bg-slate-50')}>
+                                    isSelected ? 'ring-brand-500 bg-brand-50 shadow-[0_8px_24px_-12px_color-mix(in_srgb,var(--brand-600)_50%,transparent)]' : 'ring-slate-200 hover:ring-brand-300 hover:bg-slate-50')}>
                                 <span className={cx('w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 transition',
                                     isSelected ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-700')}>
                                     {k.toUpperCase()}

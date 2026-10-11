@@ -156,7 +156,7 @@ export default function TeacherQuizzesPage() {
 
                 <aside className="lg:col-span-2 lg:sticky lg:top-24">
                     <Card className="relative overflow-hidden p-6 sm:p-7">
-                        <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br from-brand-300 to-fuchsia-300 opacity-40 blur-2xl" aria-hidden="true" />
+                        <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br from-brand-300 to-accent-300 opacity-40 blur-2xl" aria-hidden="true" />
                         <div className="relative">
                             <h2 className="flex items-center gap-2 text-xl font-bold text-ink"><Sparkles size={20} className="text-brand-600" /> ให้ AI ช่วยทำข้อสอบ</h2>
                             <p className="text-sm text-slate-500 mt-1 mb-5">ผลจาก AI จะเป็นร่างให้คุณตรวจก่อนเสมอ</p>

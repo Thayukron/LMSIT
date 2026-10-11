@@ -28,7 +28,7 @@ export default function AttemptPage() {
             </Link>
             {result.student_name && (
                 <div className="flex items-center gap-3">
-                    <span className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-fuchsia-500 text-white font-[Tahoma,'Leelawadee_UI',Thonburi,sans-serif] font-bold flex items-center justify-center">{result.student_name.charAt(0)}</span>
+                    <span className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-accent-500 text-white font-[Tahoma,'Leelawadee_UI',Thonburi,sans-serif] font-bold flex items-center justify-center">{result.student_name.charAt(0)}</span>
                     <div><div className="text-xs text-slate-400">ผลสอบของ</div><div className="font-bold text-ink">{result.student_name}</div></div>
                 </div>
             )}

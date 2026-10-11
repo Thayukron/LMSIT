@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api';
 import type { Role, User } from '@/lib/types';
 import Logo from '@/components/Logo';
 import { cx } from '@/components/ui';
+import ThemePicker from '@/components/ThemePicker';
 
 // ผู้ใช้ที่ login อยู่ ให้ทุกหน้าใน AppShell ใช้ผ่าน useUser()
 const UserContext = createContext<User | null>(null);
@@ -26,7 +27,7 @@ const HOME_BY_ROLE: Record<Role, string> = { TEACHER: '/teacher', STUDENT: '/stu
 
 function Avatar({ name }: { name: string }) {
     return (
-        <span className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-fuchsia-500 text-white font-[Tahoma,'Leelawadee_UI',Thonburi,sans-serif] font-bold flex items-center justify-center shrink-0">
+        <span className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-accent-500 text-white font-[Tahoma,'Leelawadee_UI',Thonburi,sans-serif] font-bold flex items-center justify-center shrink-0">
             {name.trim().charAt(0) || '?'}
         </span>
     );
@@ -66,6 +67,7 @@ function UserMenu({ user }: { user: User }) {
                         <div className="font-semibold text-ink truncate">{user.name}</div>
                         <div className="text-xs text-slate-500 truncate">{user.email}</div>
                     </div>
+                    <div className="px-3 py-3 border-b border-slate-100 mb-1"><ThemePicker /></div>
                     <button role="menuitem" onClick={logout}
                         className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">
                         <LogOut size={16} /> ออกจากระบบ

@@ -11,7 +11,7 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 const buttonBase = 'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 disabled:opacity-50 disabled:pointer-events-none select-none';
 const buttonVariants: Record<ButtonVariant, string> = {
-    primary: 'bg-brand-600 text-white shadow-[0_8px_20px_-8px_rgb(106_53_241/0.7)] hover:bg-brand-700 hover:-translate-y-0.5 active:translate-y-0',
+    primary: 'bg-brand-600 text-white shadow-[0_8px_20px_-8px_color-mix(in_srgb,var(--brand-600)_70%,transparent)] hover:bg-brand-700 hover:-translate-y-0.5 active:translate-y-0',
     secondary: 'bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-brand-300 hover:text-brand-700 shadow-soft',
     ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
     danger: 'bg-white text-red-600 ring-1 ring-red-200 hover:bg-red-50',
@@ -105,7 +105,7 @@ export function ProgressBar({ value, max, tone = 'brand', className, label }: {
     return (
         <div className={cx('h-2 rounded-full bg-slate-100 overflow-hidden', className)} role="progressbar"
             aria-valuenow={value} aria-valuemin={0} aria-valuemax={max} aria-label={label}>
-            <div className={cx('h-full rounded-full transition-all duration-700', tone === 'green' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-brand-500 to-fuchsia-500')}
+            <div className={cx('h-full rounded-full transition-all duration-700', tone === 'green' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-brand-500 to-accent-500')}
                 style={{ width: `${percent}%` }} />
         </div>
     );
@@ -117,7 +117,7 @@ export function ProgressRing({ percent, size = 120, stroke = 10, tone = 'brand',
 }) {
     const r = (size - stroke) / 2;
     const c = 2 * Math.PI * r;
-    const color = { brand: '#6a35f1', green: '#10b981', amber: '#f59e0b' }[tone];
+    const color = { brand: 'var(--brand-600)', green: '#10b981', amber: '#f59e0b' }[tone];
     return (
         <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
             <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
