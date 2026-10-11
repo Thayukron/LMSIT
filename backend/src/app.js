@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth.routes');
 const courseRoutes = require('./routes/course.routes');
 const moduleRoutes = require('./routes/module.routes');
 const quizRoutes = require('./routes/quiz.routes');
+const attemptRoutes = require('./routes/attempt.routes');
 
 // ต้องมี JWT_SECRET ไม่งั้นระบบ login จะไม่ปลอดภัย
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/modules', moduleRoutes);
 app.use('/api/quizzes', quizRoutes);
+app.use('/api/attempts', attemptRoutes);
 
 // --- 404 ---
 app.use((req, res) => {

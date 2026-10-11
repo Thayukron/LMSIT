@@ -150,9 +150,9 @@ export default function CourseContentPage() {
                                 </div>
                             ))}
                         </div>
-                        <button className="w-full py-6 bg-[#6366f1] text-white rounded-[24px] text-xl font-black uppercase italic tracking-tighter hover:bg-white hover:text-[#6366f1] transition-all shadow-xl">
+                        <Link href={`/student/modules/${moduleId}/quiz`} className="block text-center w-full py-6 bg-[#6366f1] text-white rounded-[24px] text-xl font-black uppercase italic tracking-tighter hover:bg-white hover:text-[#6366f1] transition-all shadow-xl">
                             Start Assessment →
-                        </button>
+                        </Link>
                     </footer>
                 </main>
             )}

@@ -76,3 +76,42 @@ export interface Quiz extends Omit<QuizDraft, 'correct_answer'> {
     module_id: number;
     correct_answer?: AnswerKey;
 }
+
+// คำตอบรายข้อในผลสอบ (สำเนาคำถาม/เฉลย ณ ตอนสอบ)
+export interface AttemptAnswer {
+    quiz_id: number | null;
+    question: string;
+    option_a: string;
+    option_b: string;
+    option_c: string;
+    option_d: string;
+    correct_answer: AnswerKey;
+    selected_answer: AnswerKey | null;
+    is_correct: boolean;
+}
+
+// ผลสอบ (POST /api/modules/:moduleId/attempts และ GET /api/attempts/:attemptId)
+export interface AttemptResult {
+    score: number;
+    total: number;
+    percent: number;
+    passed: boolean;
+    pass_percent: number;
+    answers: AttemptAnswer[];
+    saved?: boolean;
+    attempt_id?: number;
+    module_id?: number;
+    module_title?: string;
+    student_name?: string;
+    created_at?: string;
+}
+
+// ประวัติการสอบ (GET /api/modules/:moduleId/attempts)
+export interface AttemptSummary {
+    id: number;
+    score: number;
+    total: number;
+    percent: number;
+    passed: boolean;
+    created_at: string;
+}

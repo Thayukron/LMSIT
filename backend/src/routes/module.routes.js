@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const moduleController = require('../controllers/module.controller');
+const attemptController = require('../controllers/attempt.controller');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 // ทุก route ในไฟล์นี้ต้อง login ก่อน
@@ -21,5 +22,9 @@ router.post('/:moduleId/quizzes', teacherOnly, moduleController.createQuizzes);
 // ให้ AI ช่วย: คืนร่างข้อสอบให้ครูตรวจก่อน (ยังไม่บันทึก)
 router.post('/:moduleId/quizzes/ai-parse', teacherOnly, moduleController.aiParseQuizzes);
 router.post('/:moduleId/quizzes/ai-generate', teacherOnly, moduleController.aiGenerateQuizzes);
+
+// สอบ: ส่งคำตอบ (นักเรียนบันทึกผล / ครูเป็นโหมดดูตัวอย่าง) และประวัติการสอบของตัวเอง
+router.post('/:moduleId/attempts', attemptController.submitAttempt);
+router.get('/:moduleId/attempts', attemptController.listMyAttempts);
 
 module.exports = router;
