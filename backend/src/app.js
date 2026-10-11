@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/auth.routes');
 const courseRoutes = require('./routes/course.routes');
 const moduleRoutes = require('./routes/module.routes');
+const quizRoutes = require('./routes/quiz.routes');
 
 // ต้องมี JWT_SECRET ไม่งั้นระบบ login จะไม่ปลอดภัย
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
@@ -25,6 +26,7 @@ app.use(cookieParser()); // อ่าน JWT จาก cookie
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/modules', moduleRoutes);
+app.use('/api/quizzes', quizRoutes);
 
 // --- 404 ---
 app.use((req, res) => {

@@ -75,7 +75,7 @@ const getStyledContent = async (moduleId, styleType, originalText) => {
 };
 
 /**
- * 2. ฟังก์ชันวิเคราะห์ข้อสอบ (ใช้ใน importSmartQuiz ของ Controller)
+ * 2. ฟังก์ชันวิเคราะห์ข้อสอบ: แยกข้อสอบจากข้อความที่ครูวางมา
  */
 const parseQuizWithAI = async (rawText) => {
     try {
@@ -112,4 +112,49 @@ const parseQuizWithAI = async (rawText) => {
     }
 };
 
-module.exports = { getStyledContent, parseQuizWithAI };
+/**
+ * 3. ให้ AI ออกข้อสอบปรนัยจากเนื้อหาบทเรียน
+ */
+const generateQuizFromContent = async (content, count) => {
+    try {
+        console.log(`🤖 AI กำลังออกข้อสอบ ${count} ข้อจากเนื้อหาบทเรียน...`);
+
+        const prompt = `คุณคือครูผู้เชี่ยวชาญด้านการวัดผล
+        จงออกข้อสอบปรนัย 4 ตัวเลือก จำนวน ${count} ข้อ เป็นภาษาไทย จากเนื้อหาบทเรียนต่อไปนี้
+
+        เนื้อหาบทเรียน: ${content}
+
+        เงื่อนไข:
+        1. ถามเฉพาะสิ่งที่อยู่ในเนื้อหา ห้ามถามเรื่องที่เนื้อหาไม่ได้กล่าวถึง
+        2. มีคำตอบถูกเพียงข้อเดียว ตัวเลือกที่ผิดต้องดูสมเหตุสมผล
+        3. กระจายตำแหน่งคำตอบที่ถูก (a, b, c, d) ให้หลากหลาย
+        4. ตอบเป็น JSON Array เท่านั้น
+
+        โครงสร้างที่ต้องการ:
+        [
+          {
+            "question": "คำถาม?",
+            "option_a": "ตัวเลือก A",
+            "option_b": "ตัวเลือก B",
+            "option_c": "ตัวเลือก C",
+            "option_d": "ตัวเลือก D",
+            "correct_answer": "a" (ตอบเฉพาะ a, b, c หรือ d เท่านั้น)
+          }
+        ]`;
+
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.4
+            }
+        });
+
+        return JSON.parse(result.response.text());
+    } catch (error) {
+        console.error("❌ Gemini generateQuizFromContent Error:", error);
+        throw new Error("AI ไม่สามารถออกข้อสอบได้");
+    }
+};
+
+module.exports = { getStyledContent, parseQuizWithAI, generateQuizFromContent };

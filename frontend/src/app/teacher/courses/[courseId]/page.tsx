@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Pencil, Eye } from 'lucide-react';
+import { Pencil, Eye, ListChecks } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { CourseDetail } from '@/lib/types';
 import PageShell from '@/components/PageShell';
@@ -81,6 +81,10 @@ export default function TeacherCoursePage() {
                                 <li key={m.id} className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-4">
                                     <span className="text-xl font-black text-indigo-200 shrink-0">{String(i + 1).padStart(2, '0')}</span>
                                     <span className="font-bold text-gray-900 flex-1 min-w-0 break-words">{m.title}</span>
+                                    <Link href={`/teacher/modules/${m.id}/quizzes`} title="จัดการข้อสอบ" aria-label={`ข้อสอบของ ${m.title}`}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold shrink-0 ${m.quiz_count > 0 ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'} hover:ring-2 hover:ring-indigo-200`}>
+                                        <ListChecks size={14} /> {m.quiz_count > 0 ? `${m.quiz_count} ข้อ` : 'ยังไม่มีข้อสอบ'}
+                                    </Link>
                                     <Link href={`/student/modules/${m.id}`} title="ดูแบบนักเรียน" aria-label={`ดู ${m.title} แบบนักเรียน`}
                                         className="p-2 text-gray-400 hover:text-indigo-600 shrink-0"><Eye size={18} /></Link>
                                     <Link href={`/teacher/modules/${m.id}`} title="แก้ไข" aria-label={`แก้ไข ${m.title}`}

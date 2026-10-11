@@ -3,26 +3,12 @@ const db = require('../config/db');
 const aiService = require('../services/ai.service');
 const { toId, findOwnedModule } = require('../utils/access');
 const { MAX_CONTENT_LENGTH } = require('../services/parser.service');
+const { toQuizRows, normalizeQuiz, extractQuizArray } = require('../utils/quiz');
 
 // สไตล์การเรียนที่รองรับ (ต้องตรงกับหน้าเลือกสไตล์ฝั่ง Frontend)
 const ALLOWED_STYLES = ['peer_to_peer', 'summary', 'example_based', 'gamified'];
-
-// ตรวจและจัดรูปข้อสอบ คืน { values } หรือ { error }
-const toQuizRows = (moduleId, questions) => {
-    if (!Array.isArray(questions) || questions.length === 0) {
-        return { error: "ไม่พบข้อสอบที่จะบันทึก" };
-    }
-    const values = [];
-    for (const [i, q] of questions.entries()) {
-        const fields = ['question', 'option_a', 'option_b', 'option_c', 'option_d'].map(k => String(q?.[k] ?? '').trim());
-        const answer = String(q?.correct_answer ?? '').trim().toLowerCase();
-        if (fields.some(f => !f) || !['a', 'b', 'c', 'd'].includes(answer)) {
-            return { error: `ข้อสอบข้อที่ ${i + 1} ข้อมูลไม่ครบ (ต้องมีคำถาม ตัวเลือก a-d และเฉลย a-d)` };
-        }
-        values.push([moduleId, ...fields, answer]);
-    }
-    return { values };
-};
+const MAX_RAW_QUIZ_TEXT = 50000;
+const MAX_GENERATE_COUNT = 20;
 
 const insertQuizzes = (values) => db.query(
     "INSERT INTO quizzes (module_id, question, option_a, option_b, option_c, option_d, correct_answer) VALUES ?",
@@ -175,25 +161,53 @@ exports.createQuizzes = async (req, res) => {
     }
 };
 
+// ส่งร่างข้อสอบจาก AI กลับไปให้ครูตรวจ (ยังไม่บันทึก)
+const sendQuizDrafts = (res, aiResult) => {
+    const questions = extractQuizArray(aiResult).map(normalizeQuiz);
+    if (questions.length === 0) {
+        return res.status(422).json({ message: "AI ไม่พบข้อสอบในข้อความนี้ ลองตรวจรูปแบบข้อความแล้วลองใหม่" });
+    }
+    res.json({ questions });
+};
+
 /**
- * 7. นำเข้าข้อสอบอัจฉริยะ: ให้ AI แยกข้อสอบจากข้อความดิบ (เฉพาะเจ้าของ)
+ * 7. ให้ AI แยกข้อสอบจากข้อความที่ครูวางมา (เฉพาะเจ้าของ)
+ *    คืนร่างข้อสอบให้ครูตรวจ/แก้ก่อน แล้วค่อยบันทึกผ่าน POST /quizzes
  */
-exports.importQuizzesWithAI = async (req, res) => {
+exports.aiParseQuizzes = async (req, res) => {
     try {
         const moduleRow = await findOwnedModule(req, res, req.params.moduleId);
         if (!moduleRow) return;
 
         const rawText = String(req.body.rawText || '').trim();
         if (!rawText) return res.status(400).json({ message: "กรุณาวางข้อความข้อสอบ" });
+        if (rawText.length > MAX_RAW_QUIZ_TEXT) {
+            return res.status(400).json({ message: `ข้อความยาวเกินไป (สูงสุด ${MAX_RAW_QUIZ_TEXT.toLocaleString()} ตัวอักษร)` });
+        }
 
-        const quizData = await aiService.parseQuizWithAI(rawText);
-        const { values, error } = toQuizRows(moduleRow.id, quizData);
-        if (error) return res.status(422).json({ message: `AI แยกข้อสอบได้ไม่สมบูรณ์: ${error}` });
-
-        await insertQuizzes(values);
-        res.status(201).json({ success: true, message: `นำเข้าข้อสอบสำเร็จ ${values.length} ข้อ!` });
+        sendQuizDrafts(res, await aiService.parseQuizWithAI(rawText));
     } catch (error) {
-        console.error("🔥 Import Quiz Error:", error);
-        res.status(500).json({ success: false, message: "AI ไม่สามารถวิเคราะห์ข้อสอบได้" });
+        console.error("🔥 AI Parse Quiz Error:", error);
+        res.status(502).json({ message: "AI ไม่สามารถวิเคราะห์ข้อสอบได้ กรุณาลองใหม่" });
+    }
+};
+
+/**
+ * 8. ให้ AI ออกข้อสอบจากเนื้อหาบทเรียน (เฉพาะเจ้าของ) — คืนร่างให้ครูตรวจเช่นกัน
+ */
+exports.aiGenerateQuizzes = async (req, res) => {
+    try {
+        const moduleRow = await findOwnedModule(req, res, req.params.moduleId);
+        if (!moduleRow) return;
+
+        const count = Number(req.body.count);
+        if (!Number.isInteger(count) || count < 1 || count > MAX_GENERATE_COUNT) {
+            return res.status(400).json({ message: `จำนวนข้อต้องอยู่ระหว่าง 1-${MAX_GENERATE_COUNT}` });
+        }
+
+        sendQuizDrafts(res, await aiService.generateQuizFromContent(moduleRow.original_content, count));
+    } catch (error) {
+        console.error("🔥 AI Generate Quiz Error:", error);
+        res.status(502).json({ message: "AI ไม่สามารถออกข้อสอบได้ กรุณาลองใหม่" });
     }
 };

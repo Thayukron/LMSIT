@@ -72,6 +72,7 @@ export default function TeacherModulePage() {
             title={moduleInfo.title}
             back={{ href: `/teacher/courses/${moduleInfo.course_id}`, label: moduleInfo.course_title }}
             actions={<>
+                <Link href={`/teacher/modules/${moduleInfo.id}/quizzes`} className={primaryButton}>จัดการข้อสอบ</Link>
                 <Link href={`/student/modules/${moduleInfo.id}`} className={secondaryButton}>ดูแบบนักเรียน</Link>
                 <button onClick={remove} className={dangerButton}>ลบบทเรียน</button>
             </>}
@@ -100,7 +101,6 @@ export default function TeacherModulePage() {
                 </button>
             </form>
 
-            <p className="text-sm text-gray-400 mt-6">การจัดการข้อสอบของบทเรียนนี้จะเพิ่มในส่วนถัดไป</p>
         </PageShell>
     );
 }

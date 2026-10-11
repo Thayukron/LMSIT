@@ -18,6 +18,8 @@ router.get('/:moduleId/content', moduleController.getStyledContent);
 // ข้อสอบ
 router.get('/:moduleId/quizzes', moduleController.getQuizzes);
 router.post('/:moduleId/quizzes', teacherOnly, moduleController.createQuizzes);
-router.post('/:moduleId/quizzes/import-ai', teacherOnly, moduleController.importQuizzesWithAI);
+// ให้ AI ช่วย: คืนร่างข้อสอบให้ครูตรวจก่อน (ยังไม่บันทึก)
+router.post('/:moduleId/quizzes/ai-parse', teacherOnly, moduleController.aiParseQuizzes);
+router.post('/:moduleId/quizzes/ai-generate', teacherOnly, moduleController.aiGenerateQuizzes);
 
 module.exports = router;

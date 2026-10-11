@@ -24,6 +24,7 @@ export interface ModuleSummary {
     id: number;
     title: string;
     created_at: string;
+    quiz_count: number;
 }
 
 // รายละเอียดวิชา (GET /api/courses/:courseId)
@@ -55,4 +56,23 @@ export interface StyledContent {
     intro: string;
     sections: StyledSection[];
     key_points: string[];
+}
+
+export type AnswerKey = 'a' | 'b' | 'c' | 'd';
+
+// ข้อสอบที่กำลังกรอก/แก้ไข หรือร่างจาก AI (ยังไม่มี id)
+export interface QuizDraft {
+    question: string;
+    option_a: string;
+    option_b: string;
+    option_c: string;
+    option_d: string;
+    correct_answer: AnswerKey | '';
+}
+
+// ข้อสอบที่บันทึกแล้ว (GET /api/modules/:moduleId/quizzes) — correct_answer มีเฉพาะครูเจ้าของวิชา
+export interface Quiz extends Omit<QuizDraft, 'correct_answer'> {
+    id: number;
+    module_id: number;
+    correct_answer?: AnswerKey;
 }

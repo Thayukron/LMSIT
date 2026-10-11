@@ -49,4 +49,29 @@ const findOwnedModule = async (req, res, moduleIdParam) => {
     return rows[0];
 };
 
-module.exports = { toId, findOwnedCourse, findOwnedModule };
+/**
+ * หาข้อสอบที่อยู่ในวิชาของครูคนนี้ (หลักการเดียวกับ findOwnedCourse)
+ */
+const findOwnedQuiz = async (req, res, quizIdParam) => {
+    const quizId = toId(quizIdParam);
+    const [rows] = quizId
+        ? await db.query(
+            `SELECT q.*, c.teacher_id FROM quizzes q
+             JOIN modules m ON m.id = q.module_id
+             JOIN courses c ON c.id = m.course_id
+             WHERE q.id = ?`,
+            [quizId]
+        )
+        : [[]];
+    if (rows.length === 0) {
+        res.status(404).json({ message: "ไม่พบข้อสอบนี้" });
+        return null;
+    }
+    if (rows[0].teacher_id !== req.user.id) {
+        res.status(403).json({ message: "คุณไม่ใช่ผู้สอนของข้อสอบนี้" });
+        return null;
+    }
+    return rows[0];
+};
+
+module.exports = { toId, findOwnedCourse, findOwnedModule, findOwnedQuiz };

@@ -50,7 +50,9 @@ exports.getCourse = async (req, res) => {
         if (courses.length === 0) return res.status(404).json({ message: "ไม่พบวิชานี้" });
 
         const [modules] = await db.query(
-            "SELECT id, title, created_at FROM modules WHERE course_id = ? ORDER BY id",
+            `SELECT m.id, m.title, m.created_at, COUNT(q.id) AS quiz_count
+             FROM modules m LEFT JOIN quizzes q ON q.module_id = m.id
+             WHERE m.course_id = ? GROUP BY m.id ORDER BY m.id`,
             [courseId]
         );
         const course = courses[0];
