@@ -1,123 +1,92 @@
-# 🚀 AI-Powered Personalized LMS (Next.js + Node.js + MySQL)
+# 🚀 AI-Powered Personalized LMS
 
-ระบบจัดการการเรียนรู้อัจฉริยะที่ช่วยให้ครูผู้สอนสามารถอัปโหลดเนื้อหาเพียงครั้งเดียว แต่ผู้เรียนสามารถเลือก "สไตล์การนำเสนอ" ที่ตัวเองชอบได้ โดยมี AI (GPT-4o) เป็นผู้ช่วยปรับเปลี่ยนรูปแบบเนื้อหา
+ระบบจัดการการเรียนรู้ที่ครูอัปโหลดเนื้อหาเพียงครั้งเดียว แล้วผู้เรียนเลือก "สไตล์การนำเสนอ" ที่ชอบได้ โดยมี AI (Google Gemini) ปรับรูปแบบเนื้อหาให้
 
-## 🌟 ฟีเจอร์หลัก (Key Features)
-
-### สำหรับครู (Teacher Role)
-- **Course Management:** สร้างวิชาและหน่วยการเรียนรู้ (Modules)
-- **Content Import:** รองรับการอัปโหลดเนื้อหาผ่าน PDF, Word, Text และ URL
-- **Quiz Creator:** ระบบสร้างข้อสอบปรนัย (Multiple Choice)
-- **Progress Tracking:** ดูคะแนนและความก้าวหน้าของผู้เรียนรายบุคคล
-
-### สำหรับผู้เรียน (Student Role)
-- **Personalized Content:** เลือกสไตล์เนื้อหาได้ 5 แบบ (เพื่อนสอนเพื่อน, สรุป, ตัวอย่าง, ถาม-ตอบ, เกม)
-- **AI Content Caching:** ระบบสุ่มเนื้อหาจาก Cache 3 เวอร์ชั่นต่อ 1 สไตล์ (ลดการใช้ API และเพิ่มความหลากหลาย)
-- **Interactive Quiz:** ทำข้อสอบชุดเดียวกันไม่ว่าจะเลือกเรียนสไตล์ไหน
-- **Dashboard:** แสดงความก้าวหน้าในการเรียนและคะแนนที่ทำได้
+**Tech Stack:** Next.js 16 + Tailwind CSS 4 · Node.js + Express 5 · MySQL/MariaDB · Google Gemini
 
 ---
 
-## 🏗️ โครงสร้างไฟล์ (Project Structure)
+## 📊 สถานะการพัฒนา
 
-```text
-/
-├── backend/                # Node.js + Express API
-│   ├── src/
-│   │   ├── config/         # การตั้งค่า Database (MySQL) และ OpenAI
-│   │   ├── controllers/    # ส่วนควบคุม Logic (Auth, Content, Quiz)
-│   │   ├── middleware/     # การจัดการไฟล์ (Multer) และ Auth Guard
-│   │   ├── models/         # Database Schema (Sequelize/Prisma)
-│   │   ├── services/       # AI Engine (OpenAI), Parser (PDF/Docx/URL)
-│   │   └── routes/         # API Endpoints
-│   └── .env                # เก็บ API Keys และ DB Config
-│
-├── frontend/               # Next.js + Tailwind CSS
-│   ├── src/
-│   │   ├── app/            # App Router (Pages: /teacher, /student)
-│   │   ├── components/     # UI Components (QuizCard, StyleSelector, ProgressBar)
-│   │   ├── hooks/          # API Calling logic
-│   │   └── store/          # State management (Zustand/Context)
-│   └── tailwind.config.js
-└── database/
-    └── schema.sql          # ไฟล์สำหรับ Init ฐานข้อมูล MySQL
+| ระยะ | งาน | สถานะ |
+|---|---|---|
+| 0 | วางรากฐาน: โครงสร้างโปรเจกต์, package.json, schema, env | ✅ เสร็จ |
+| 1 | ระบบผู้ใช้: Register/Login (JWT), แยกสิทธิ์ครู/นักเรียน | ⏳ |
+| 2 | CRUD วิชา/โมดูล/ข้อสอบ, หน้าครู, หน้าทำข้อสอบ, เก็บคะแนน, Dashboard | ⏳ |
+| 3 | ความเสถียรของ AI: ตรวจ JSON, cache หลายเวอร์ชัน, จำกัดความยาวเนื้อหา | ⏳ |
+| 4 | ความปลอดภัยและพร้อมใช้งานจริง: validation, rate limit, CORS, tests | ⏳ |
 
-คู่หูเขียนโค้ด
-จัดไปครับ! การทำไฟล์ README.md ที่ชัดเจนจะเปรียบเสมือนแผนที่นำทาง (Roadmap) ให้กับโปรเจ็กต์ของเรา ผมจะร่างโครงสร้างทั้งหมดโดยรวมฟีเจอร์ที่คุณต้องการ (AI Caching, Multi-style content, Quiz System) ไว้ในนี้เลยครับ
-
-📄 แฟ้มโครงการ: README.md
-Markdown
-# 🚀 AI-Powered Personalized LMS (Next.js + Node.js + MySQL)
-
-ระบบจัดการการเรียนรู้อัจฉริยะที่ช่วยให้ครูผู้สอนสามารถอัปโหลดเนื้อหาเพียงครั้งเดียว แต่ผู้เรียนสามารถเลือก "สไตล์การนำเสนอ" ที่ตัวเองชอบได้ โดยมี AI (GPT-4o) เป็นผู้ช่วยปรับเปลี่ยนรูปแบบเนื้อหา
-
-## 🌟 ฟีเจอร์หลัก (Key Features)
-
-### สำหรับครู (Teacher Role)
-- **Course Management:** สร้างวิชาและหน่วยการเรียนรู้ (Modules)
-- **Content Import:** รองรับการอัปโหลดเนื้อหาผ่าน PDF, Word, Text และ URL
-- **Quiz Creator:** ระบบสร้างข้อสอบปรนัย (Multiple Choice)
-- **Progress Tracking:** ดูคะแนนและความก้าวหน้าของผู้เรียนรายบุคคล
-
-### สำหรับผู้เรียน (Student Role)
-- **Personalized Content:** เลือกสไตล์เนื้อหาได้ 5 แบบ (เพื่อนสอนเพื่อน, สรุป, ตัวอย่าง, ถาม-ตอบ, เกม)
-- **AI Content Caching:** ระบบสุ่มเนื้อหาจาก Cache 3 เวอร์ชั่นต่อ 1 สไตล์ (ลดการใช้ API และเพิ่มความหลากหลาย)
-- **Interactive Quiz:** ทำข้อสอบชุดเดียวกันไม่ว่าจะเลือกเรียนสไตล์ไหน
-- **Dashboard:** แสดงความก้าวหน้าในการเรียนและคะแนนที่ทำได้
+### มีแล้วตอนนี้
+- นำเข้าเนื้อหาจาก PDF / Word (.docx) / URL (API)
+- นำเข้าข้อสอบด้วย AI จากข้อความดิบ และสร้างข้อสอบเอง (API)
+- นักเรียนดูรายการโมดูล และเลือกสไตล์เนื้อหา 4 แบบ (เพื่อนสอนเพื่อน, สรุป, ตัวอย่าง, เกม) พร้อม cache ผลจาก AI
 
 ---
 
-## 🏗️ โครงสร้างไฟล์ (Project Structure)
+## 🏗️ โครงสร้างโปรเจกต์
 
 ```text
-/
-├── backend/                # Node.js + Express API
+LMSIT/
+├── backend/                 # Node.js + Express API
 │   ├── src/
-│   │   ├── config/         # การตั้งค่า Database (MySQL) และ OpenAI
-│   │   ├── controllers/    # ส่วนควบคุม Logic (Auth, Content, Quiz)
-│   │   ├── middleware/     # การจัดการไฟล์ (Multer) และ Auth Guard
-│   │   ├── models/         # Database Schema (Sequelize/Prisma)
-│   │   ├── services/       # AI Engine (OpenAI), Parser (PDF/Docx/URL)
-│   │   └── routes/         # API Endpoints
-│   └── .env                # เก็บ API Keys และ DB Config
-│
-├── frontend/               # Next.js + Tailwind CSS
-│   ├── src/
-│   │   ├── app/            # App Router (Pages: /teacher, /student)
-│   │   ├── components/     # UI Components (QuizCard, StyleSelector, ProgressBar)
-│   │   ├── hooks/          # API Calling logic
-│   │   └── store/          # State management (Zustand/Context)
-│   └── tailwind.config.js
+│   │   ├── app.js           # จุดเริ่มต้นของ Server
+│   │   ├── config/db.js     # MySQL connection pool
+│   │   ├── controllers/     # Logic ของแต่ละ API
+│   │   ├── middleware/      # Multer (อัปโหลดไฟล์)
+│   │   ├── routes/          # API Endpoints
+│   │   └── services/        # AI (Gemini) และ Parser (PDF/Docx/URL)
+│   └── .env.example
+├── frontend/                # Next.js (App Router) + Tailwind
+│   ├── src/app/student/     # หน้า Dashboard และหน้าเรียนของนักเรียน
+│   ├── src/lib/             # API URL และ TypeScript types
+│   └── .env.example
 └── database/
-    └── schema.sql          # ไฟล์สำหรับ Init ฐานข้อมูล MySQL
+    ├── schema.sql           # สร้างฐานข้อมูลและตาราง
+    └── seed.sql             # ข้อมูลตัวอย่าง
+```
 
+---
 
-🗄️ โครงสร้างฐานข้อมูล (Database Schema)
-users: เก็บข้อมูลผู้ใช้งาน (Roles: TEACHER, STUDENT)
+## ⚙️ วิธีติดตั้งและรัน
 
-courses: ข้อมูลวิชาหลัก
+ต้องมี **Node.js 20+** และ **MySQL/MariaDB** (เช่น XAMPP)
 
-modules: หน่วยการเรียนรู้ (เก็บเนื้อหาหลัก original_text)
+### 1. ฐานข้อมูล
+เปิด MySQL ใน XAMPP แล้วรัน:
+```bash
+mysql -u root -p < database/schema.sql
+mysql -u root -p < database/seed.sql     # (ไม่บังคับ) ข้อมูลตัวอย่าง
+```
+หรือ Import สองไฟล์นี้ผ่าน phpMyAdmin
 
-content_cache: เก็บเนื้อหาที่ AI เจน (module_id, style_type, version_number, body_text)
+### 2. Backend
+```bash
+cd backend
+npm install
+cp .env.example .env     # แล้วแก้ค่า DB_* และ GEMINI_API_KEY
+npm run dev              # รันที่ http://localhost:5000
+```
 
-quizzes: โจทย์ข้อสอบ (module_id, question, options_json, correct_answer)
+### 3. Frontend
+```bash
+cd frontend
+npm install
+cp .env.example .env.local
+npm run dev              # เปิด http://localhost:3000
+```
 
-user_progress: ประวัติการเรียนและคะแนนสอบ
+---
 
-🛠️ เทคโนโลยีที่ใช้ (Tech Stack)
-Frontend: Next.js 14+, Tailwind CSS, Lucide React (Icons)
+## 🔌 API Endpoints (ปัจจุบัน)
 
-Backend: Node.js, Express
+| Method | Path | คำอธิบาย |
+|---|---|---|
+| GET | `/api/courses` | รายการโมดูลทั้งหมด |
+| GET | `/api/courses/modules/:moduleId` | ข้อมูลโมดูล |
+| GET | `/api/courses/modules/:moduleId/content?style=summary` | เนื้อหาที่ AI ปรับสไตล์ (`peer_to_peer`, `summary`, `example_based`, `gamified`) |
+| GET | `/api/courses/modules/:moduleId/quizzes` | ข้อสอบของโมดูล |
+| POST | `/api/courses/upload-module` | นำเข้าเนื้อหา (form-data: `courseId`, `title`, `file` หรือ `url`) |
+| POST | `/api/courses/import-smart-quiz` | ให้ AI แยกข้อสอบจากข้อความ (`moduleId`, `rawText`) |
+| POST | `/api/courses/create-quiz` | สร้างข้อสอบเอง (`moduleId`, `questions[]`) |
 
-Database: MySQL
-
-AI Integration: OpenAI API (Model: gpt-4o)
-
-Libraries:
-
-pdf-parse (สำหรับอ่าน PDF)
-
-mammoth (สำหรับอ่าน Word)
-
-cheerio (สำหรับดึงเนื้อหาจาก URL)"# LMSIT" 
+> ⚠️ ยังไม่มีระบบ Login และยังไม่ได้ปิดช่องโหว่ด้านความปลอดภัย (ระยะ 1 และ 4) ห้ามนำไปใช้งานจริงบนอินเทอร์เน็ต

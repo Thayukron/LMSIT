@@ -1,0 +1,26 @@
+{
+  "name": "lmsit-backend",
+  "version": "1.0.0",
+  "description": "AI-Powered Personalized LMS - Backend API",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.20.0",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "mammoth": "^1.13.0",
+    "multer": "^2.4.0",
+    "mysql2": "^3.24.5",
+    "pdf-parse": "^2.4.5"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

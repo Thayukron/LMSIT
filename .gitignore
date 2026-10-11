@@ -1,0 +1,12 @@
+# dependencies
+node_modules/
+
+# env files (เก็บแค่ .env.example)
+.env
+.env.*
+!.env.example
+
+# logs / OS
+*.log
+.DS_Store
+Thumbs.db
