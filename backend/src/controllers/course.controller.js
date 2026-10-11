@@ -12,20 +12,25 @@ const validateCourseInput = (title, description) => {
 
 /**
  * 1. รายการวิชา (?mine=1 สำหรับครู = เฉพาะวิชาที่ตัวเองสอน)
+ *    มีความก้าวหน้าของผู้ใช้ที่ login อยู่ด้วย: visited_count (บทที่เข้าเรียน), passed_count (บทที่สอบผ่าน)
  */
 exports.listCourses = async (req, res) => {
     try {
         const mineOnly = req.query.mine === '1' && req.user.role === 'TEACHER';
         const [rows] = await db.query(
             `SELECT c.id, c.title, c.description, c.teacher_id, u.name AS teacher_name,
-                    COUNT(m.id) AS module_count, c.created_at
+                    COUNT(m.id) AS module_count, c.created_at,
+                    (SELECT COUNT(*) FROM module_visits v JOIN modules vm ON vm.id = v.module_id
+                     WHERE vm.course_id = c.id AND v.user_id = ?) AS visited_count,
+                    (SELECT COUNT(DISTINCT a.module_id) FROM quiz_attempts a JOIN modules am ON am.id = a.module_id
+                     WHERE am.course_id = c.id AND a.user_id = ? AND a.passed = 1) AS passed_count
              FROM courses c
              LEFT JOIN users u ON u.id = c.teacher_id
              LEFT JOIN modules m ON m.course_id = c.id
              ${mineOnly ? 'WHERE c.teacher_id = ?' : ''}
              GROUP BY c.id
              ORDER BY c.id DESC`,
-            mineOnly ? [req.user.id] : []
+            [req.user.id, req.user.id, ...(mineOnly ? [req.user.id] : [])]
         );
         res.json(rows);
     } catch (error) {

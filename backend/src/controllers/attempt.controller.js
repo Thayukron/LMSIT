@@ -1,12 +1,9 @@
 // backend/src/controllers/attempt.controller.js
 const db = require('../config/db');
 const { toId } = require('../utils/access');
+const { PASS_PERCENT, percentOf } = require('../utils/quiz');
 
-// เกณฑ์ผ่าน (เปอร์เซ็นต์ของคะแนนเต็ม)
-const PASS_PERCENT = 60;
 const ANSWERS = ['a', 'b', 'c', 'd'];
-
-const percentOf = (score, total) => (total > 0 ? Math.round((score / total) * 100) : 0);
 
 // รวมผลรายข้อเป็นสรุปคะแนนที่ส่งกลับให้หน้าเว็บ
 const summarize = (answers) => {

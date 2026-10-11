@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Pencil, Trash2, Check } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
-import type { Quiz, QuizDraft } from '@/lib/types';
+import type { Quiz, QuizDraft, QuizStat } from '@/lib/types';
 import { ANSWER_KEYS, OPTION_FIELD, toDraft, draftError } from '@/lib/quiz';
 import { cardClass, primaryButton, secondaryButton, errorBox } from '@/lib/ui';
 import QuestionEditor from '@/components/teacher/QuestionEditor';
@@ -11,10 +11,22 @@ interface QuizCardProps {
     quiz: Quiz;
     index: number;
     onChanged: () => void;
+    stats?: QuizStat; // สถิติการตอบของนักเรียน (ถ้ามีคนสอบแล้ว)
+}
+
+// ป้ายสรุปความยาก: ตอบถูกน้อยกว่า 40% = ยาก (อาจต้องทบทวนเนื้อหาหรือคำถาม)
+function StatsBadge({ stats }: { stats: QuizStat }) {
+    const tone = stats.correct_percent < 40 ? 'bg-red-50 text-red-700' : stats.correct_percent < 70 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
+    return (
+        <p className={`text-xs font-bold px-2 py-1 rounded-lg inline-block ${tone}`}>
+            ตอบถูก {stats.correct_percent}% ({stats.correct}/{stats.answered} ครั้ง)
+            {stats.correct_percent < 40 && ' · ข้อนี้นักเรียนตอบผิดเยอะ'}
+        </p>
+    );
 }
 
 // ข้อสอบที่บันทึกแล้ว 1 ข้อ: ดูเฉลย / แก้ไขในที่ / ลบ
-export default function QuizCard({ quiz, index, onChanged }: QuizCardProps) {
+export default function QuizCard({ quiz, index, onChanged, stats }: QuizCardProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<QuizDraft>(() => toDraft(quiz));
     const [error, setError] = useState('');
@@ -85,11 +97,13 @@ export default function QuizCard({ quiz, index, onChanged }: QuizCardProps) {
                                 <li key={k} className={`flex items-start gap-2 rounded-xl px-3 py-2 text-sm ${isCorrect ? 'bg-green-50 text-green-800 font-bold' : 'bg-gray-50 text-gray-600'}`}>
                                     <span className="shrink-0">{k.toUpperCase()}.</span>
                                     <span className="flex-1 min-w-0 break-words">{quiz[OPTION_FIELD[k]]}</span>
+                                    {stats && <span className="shrink-0 text-xs font-normal opacity-70" title="จำนวนครั้งที่นักเรียนเลือกตัวเลือกนี้">{stats.choices[k]} ครั้ง</span>}
                                     {isCorrect && <Check size={16} className="shrink-0 mt-0.5" aria-label="คำตอบที่ถูก" />}
                                 </li>
                             );
                         })}
                     </ul>
+                    {stats && stats.answered > 0 && <div className="mt-3"><StatsBadge stats={stats} /></div>}
                     {error && <p role="alert" className={`${errorBox} mt-3`}>{error}</p>}
                 </>
             )}

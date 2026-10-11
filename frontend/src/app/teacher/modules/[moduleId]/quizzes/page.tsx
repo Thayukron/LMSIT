@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
-import type { ModuleDetail, Quiz, QuizDraft } from '@/lib/types';
+import type { ModuleDetail, Quiz, QuizDraft, QuizStats } from '@/lib/types';
 import { emptyDraft, draftError } from '@/lib/quiz';
 import PageShell from '@/components/PageShell';
 import Spinner from '@/components/Spinner';
@@ -19,6 +19,7 @@ export default function TeacherQuizzesPage() {
     const { moduleId } = useParams<{ moduleId: string }>();
     const [moduleInfo, setModuleInfo] = useState<ModuleDetail | null>(null);
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+    const [stats, setStats] = useState<QuizStats>({});
     const [loadError, setLoadError] = useState('');
     const [drafts, setDrafts] = useState<DraftItem[]>([]);
     const [showErrors, setShowErrors] = useState(false);
@@ -30,6 +31,7 @@ export default function TeacherQuizzesPage() {
 
     const loadQuizzes = useCallback(() => {
         apiFetch<Quiz[]>(`/api/modules/${moduleId}/quizzes`).then(setQuizzes).catch(err => setLoadError(err.message));
+        apiFetch<QuizStats>(`/api/modules/${moduleId}/quiz-stats`).then(setStats).catch(console.error);
     }, [moduleId]);
 
     useEffect(() => {
@@ -136,7 +138,7 @@ export default function TeacherQuizzesPage() {
                             </p>
                         ) : (
                             <ol className="space-y-4">
-                                {quizzes.map((q, i) => <QuizCard key={q.id} quiz={q} index={i} onChanged={loadQuizzes} />)}
+                                {quizzes.map((q, i) => <QuizCard key={q.id} quiz={q} index={i} onChanged={loadQuizzes} stats={stats[q.id]} />)}
                             </ol>
                         )}
                     </section>

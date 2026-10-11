@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import type { CourseSummary } from '@/lib/types';
 import PageShell from '@/components/PageShell';
+import ProgressBar from '@/components/ProgressBar';
 import { BookOpen } from 'lucide-react';
 
 export default function StudentDashboard() {
@@ -42,7 +43,12 @@ export default function StudentDashboard() {
                                         {c.description || `เริ่มเรียนรู้วิชา ${c.title} ด้วยระบบ AI อัจฉริยะที่สรุปเนื้อหาให้คุณเข้าใจง่ายขึ้น`}
                                     </p>
                                 </div>
-                                <div className="mt-8 flex items-center justify-between text-sm">
+                                {c.module_count > 0 && (
+                                    <div className="mt-6">
+                                        <ProgressBar value={c.passed_count} max={c.module_count} label="สอบผ่าน (บท)" />
+                                    </div>
+                                )}
+                                <div className="mt-6 flex items-center justify-between text-sm">
                                     <span className="text-gray-400">{c.module_count} บทเรียน{c.teacher_name ? ` · ${c.teacher_name}` : ''}</span>
                                     <span className="text-indigo-600 font-black uppercase tracking-widest">เข้าเรียน &rarr;</span>
                                 </div>

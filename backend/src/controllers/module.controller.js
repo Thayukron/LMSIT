@@ -106,6 +106,15 @@ exports.getStyledContent = async (req, res) => {
         if (modules.length === 0) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
 
         const styledContent = await aiService.getStyledContent(moduleId, style, modules[0].original_content);
+
+        // บันทึกการเข้าเรียน (เฉพาะนักเรียน, เมื่อได้เนื้อหาสำเร็จ)
+        if (req.user.role === 'STUDENT') {
+            await db.query(
+                `INSERT INTO module_visits (user_id, module_id) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE last_visited_at = CURRENT_TIMESTAMP`,
+                [req.user.id, moduleId]
+            );
+        }
         res.json({
             success: true,
             title: modules[0].title,

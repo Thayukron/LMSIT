@@ -4,6 +4,10 @@ const QUIZ_TEXT_FIELDS = ['question', 'option_a', 'option_b', 'option_c', 'optio
 const ANSWERS = ['a', 'b', 'c', 'd'];
 const MAX_FIELD_LENGTH = 2000;
 
+// เกณฑ์ผ่านแบบทดสอบ (เปอร์เซ็นต์ของคะแนนเต็ม)
+const PASS_PERCENT = 60;
+const percentOf = (score, total) => (total > 0 ? Math.round((score / total) * 100) : 0);
+
 // แปลงข้อสอบ 1 ข้อให้เป็นรูปแบบมาตรฐาน (ตัดช่องว่าง, เฉลยเป็นตัวพิมพ์เล็ก)
 const normalizeQuiz = (q) => {
     const quiz = {};
@@ -51,4 +55,4 @@ const extractQuizArray = (aiResult) => {
     return [];
 };
 
-module.exports = { normalizeQuiz, quizError, toQuizRows, extractQuizArray };
+module.exports = { normalizeQuiz, quizError, toQuizRows, extractQuizArray, PASS_PERCENT, percentOf };

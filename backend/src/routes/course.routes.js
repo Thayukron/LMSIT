@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const courseController = require('../controllers/course.controller');
+const progressController = require('../controllers/progress.controller');
 const { uploadSingle } = require('../middleware/upload');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
@@ -21,5 +22,9 @@ router.delete('/:courseId', teacherOnly, courseController.deleteCourse);
 
 // เพิ่มบทเรียน (form-data: title + file หรือ url หรือ text)
 router.post('/:courseId/modules', teacherOnly, uploadSingle('file'), courseController.createModule);
+
+// ความก้าวหน้าของฉัน (นักเรียน) และรายงานผลการเรียนทั้งวิชา (ครูเจ้าของ)
+router.get('/:courseId/progress', progressController.getMyCourseProgress);
+router.get('/:courseId/report', teacherOnly, progressController.getCourseReport);
 
 module.exports = router;

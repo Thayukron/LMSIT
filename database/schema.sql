@@ -103,3 +103,16 @@ CREATE TABLE IF NOT EXISTS quiz_attempt_answers (
     CONSTRAINT fk_answers_quiz FOREIGN KEY (quiz_id)
         REFERENCES quizzes(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+-- การเข้าเรียน: 1 แถวต่อนักเรียน 1 บทเรียน (บันทึกเมื่อเปิดอ่านเนื้อหาสำเร็จ)
+CREATE TABLE IF NOT EXISTS module_visits (
+    user_id          INT NOT NULL,
+    module_id        INT NOT NULL,
+    first_visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_visited_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, module_id),
+    CONSTRAINT fk_visits_user FOREIGN KEY (user_id)
+        REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_visits_module FOREIGN KEY (module_id)
+        REFERENCES modules(id) ON DELETE CASCADE
+) ENGINE=InnoDB;

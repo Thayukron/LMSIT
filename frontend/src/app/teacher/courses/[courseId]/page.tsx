@@ -9,7 +9,7 @@ import PageShell from '@/components/PageShell';
 import Spinner from '@/components/Spinner';
 import CourseForm from '@/components/teacher/CourseForm';
 import AddModuleForm from '@/components/teacher/AddModuleForm';
-import { cardClass, secondaryButton, dangerButton, successBox } from '@/lib/ui';
+import { cardClass, primaryButton, secondaryButton, dangerButton, successBox } from '@/lib/ui';
 
 export default function TeacherCoursePage() {
     const { courseId } = useParams<{ courseId: string }>();
@@ -56,6 +56,7 @@ export default function TeacherCoursePage() {
             title={course.title}
             back={back}
             actions={!editing && (<>
+                <Link href={`/teacher/courses/${course.id}/report`} className={primaryButton}>รายงานผลการเรียน</Link>
                 <button onClick={() => setEditing(true)} className={secondaryButton}>แก้ไขข้อมูลวิชา</button>
                 <button onClick={deleteCourse} className={dangerButton}>ลบวิชา</button>
             </>)}

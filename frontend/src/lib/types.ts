@@ -17,6 +17,8 @@ export interface CourseSummary {
     teacher_name: string | null;
     module_count: number;
     created_at: string;
+    visited_count: number; // บทที่ผู้ใช้คนนี้เข้าเรียนแล้ว
+    passed_count: number;  // บทที่ผู้ใช้คนนี้สอบผ่านแล้ว
 }
 
 // บทเรียนในรายการของวิชา
@@ -28,7 +30,7 @@ export interface ModuleSummary {
 }
 
 // รายละเอียดวิชา (GET /api/courses/:courseId)
-export interface CourseDetail extends Omit<CourseSummary, 'module_count'> {
+export interface CourseDetail extends Omit<CourseSummary, 'module_count' | 'visited_count' | 'passed_count'> {
     modules: ModuleSummary[];
     can_edit: boolean;
 }
@@ -115,3 +117,58 @@ export interface AttemptSummary {
     passed: boolean;
     created_at: string;
 }
+
+// สรุปผลสอบของนักเรียน 1 คนใน 1 บทเรียน (ใช้ครั้งที่คะแนนสูงสุด)
+export interface ModuleResult {
+    visited: boolean;
+    attempt_count: number;
+    best_percent: number | null;
+    best_score: number | null;
+    best_total: number | null;
+    best_attempt_id: number | null;
+    passed: boolean;
+    last_attempt_at: string | null;
+}
+
+// ความก้าวหน้าของฉันในวิชา (GET /api/courses/:courseId/progress)
+export interface CourseProgress {
+    course_id: number;
+    pass_percent: number;
+    total_modules: number;
+    visited_modules: number;
+    passed_modules: number;
+    modules: (ModuleResult & { module_id: number; title: string; quiz_count: number; last_visited_at: string | null })[];
+}
+
+// รายงานผลการเรียนทั้งวิชา (GET /api/courses/:courseId/report)
+export interface CourseReport {
+    course_id: number;
+    course_title: string;
+    pass_percent: number;
+    modules: {
+        id: number;
+        title: string;
+        quiz_count: number;
+        visited_count: number;
+        attempted_count: number;
+        passed_count: number;
+        average_best_percent: number | null;
+    }[];
+    students: {
+        id: number;
+        name: string;
+        email: string;
+        visited_modules: number;
+        passed_modules: number;
+        results: Record<number, ModuleResult>;
+    }[];
+}
+
+// สถิติรายข้อ (GET /api/modules/:moduleId/quiz-stats) — key คือ quiz id
+export interface QuizStat {
+    answered: number;
+    correct: number;
+    correct_percent: number;
+    choices: Record<AnswerKey | 'blank', number>;
+}
+export type QuizStats = Record<number, QuizStat>;
