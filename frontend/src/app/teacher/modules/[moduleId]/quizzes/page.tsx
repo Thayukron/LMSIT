@@ -160,7 +160,9 @@ export default function TeacherQuizzesPage() {
                         <div className="relative">
                             <h2 className="flex items-center gap-2 text-xl font-bold text-ink"><Sparkles size={20} className="text-brand-600" /> ให้ AI ช่วยทำข้อสอบ</h2>
                             <p className="text-sm text-slate-500 mt-1 mb-5">ผลจาก AI จะเป็นร่างให้คุณตรวจก่อนเสมอ</p>
-                            <AiQuizPanel moduleId={moduleInfo.id} onDrafts={addDrafts} />
+                            {moduleInfo.ai_ready
+                                ? <AiQuizPanel moduleId={moduleInfo.id} onDrafts={addDrafts} />
+                                : <Alert tone="warning">วิชานี้ยังไม่ได้ตั้งค่า API key ของ AI <Link href={`/teacher/courses/${moduleInfo.course_id}`} className="font-semibold underline">ไปตั้งค่าที่หน้าจัดการวิชา</Link></Alert>}
                         </div>
                     </Card>
                 </aside>

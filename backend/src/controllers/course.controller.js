@@ -2,6 +2,7 @@
 const db = require('../config/db');
 const { parseFile, parseUrl, cleanText, MAX_CONTENT_LENGTH } = require('../services/parser.service');
 const { toId, findOwnedCourse } = require('../utils/access');
+const { getCourseKeyStatus, validateApiKey, saveCourseApiKey, clearCourseApiKey } = require('../services/aiKey.service');
 
 // ตรวจชื่อ/คำอธิบายวิชา คืนข้อความ error หรือ null ถ้าถูกต้อง
 const validateCourseInput = (title, description) => {
@@ -20,7 +21,7 @@ exports.listCourses = async (req, res) => {
         const mineOnly = req.query.mine === '1' && req.user.role === 'TEACHER';
         const [rows] = await db.query(
             `SELECT c.id, c.title, c.description, c.teacher_id, u.name AS teacher_name,
-                    COUNT(m.id) AS module_count, c.created_at,
+                    COUNT(m.id) AS module_count, c.created_at, c.ai_api_key_enc IS NOT NULL AS has_ai_key,
                     (SELECT COUNT(*) FROM module_visits v JOIN modules vm ON vm.id = v.module_id
                      WHERE vm.course_id = c.id AND v.user_id = ?) AS visited_count,
                     (SELECT COUNT(DISTINCT a.module_id) FROM quiz_attempts a JOIN modules am ON am.id = a.module_id
@@ -55,7 +56,8 @@ exports.getCourse = async (req, res) => {
         const courseId = toId(req.params.courseId);
         const [courses] = courseId
             ? await db.query(
-                `SELECT c.id, c.title, c.description, c.teacher_id, u.name AS teacher_name, c.created_at
+                `SELECT c.id, c.title, c.description, c.teacher_id, u.name AS teacher_name, c.created_at,
+                        c.ai_api_key_enc, c.ai_api_key_hint, c.ai_api_key_updated_at
                  FROM courses c LEFT JOIN users u ON u.id = c.teacher_id WHERE c.id = ?`,
                 [courseId]
             )
@@ -68,8 +70,16 @@ exports.getCourse = async (req, res) => {
              WHERE m.course_id = ? GROUP BY m.id ORDER BY m.id`,
             [courseId]
         );
-        const course = courses[0];
-        res.json({ ...course, modules, can_edit: course.teacher_id === req.user.id });
+        const { ai_api_key_enc, ai_api_key_hint, ai_api_key_updated_at, ...course } = courses[0];
+        const canEdit = course.teacher_id === req.user.id;
+        const ai = getCourseKeyStatus({ ai_api_key_enc, ai_api_key_hint, ai_api_key_updated_at });
+        res.json({
+            ...course,
+            modules,
+            can_edit: canEdit,
+            // ครูเจ้าของเห็นสถานะ key (ไม่เห็นตัว key) ส่วนคนอื่นรู้แค่ว่าใช้ AI ได้ไหม
+            ai: canEdit ? ai : { ai_ready: ai.ai_ready },
+        });
     } catch (error) {
         console.error("🔥 Get Course Error:", error);
         res.status(500).json({ message: "ดึงข้อมูลวิชาไม่สำเร็จ" });
@@ -180,5 +190,43 @@ exports.createModule = async (req, res) => {
     } catch (error) {
         console.error("🔥 Create Module Error:", error);
         res.status(500).json({ message: "เพิ่มบทเรียนไม่สำเร็จ" });
+    }
+};
+
+/**
+ * 7. ตั้งค่า API key ของ AI สำหรับวิชา (เฉพาะเจ้าของ) — ตรวจกับ Google ก่อนบันทึก และเก็บแบบเข้ารหัส
+ */
+exports.setAiKey = async (req, res) => {
+    try {
+        const course = await findOwnedCourse(req, res, req.params.courseId);
+        if (!course) return;
+
+        const apiKey = String(req.body.apiKey || '').trim();
+        if (!/^[A-Za-z0-9_-]{20,200}$/.test(apiKey)) {
+            return res.status(400).json({ message: "รูปแบบ API key ไม่ถูกต้อง (คัดลอกจาก Google AI Studio มาทั้งหมด)" });
+        }
+        const invalid = await validateApiKey(apiKey);
+        if (invalid) return res.status(400).json({ message: invalid });
+
+        await saveCourseApiKey(course.id, apiKey);
+        res.json({ message: "บันทึก API key แล้ว AI พร้อมใช้งานในวิชานี้", hint: `••••${apiKey.slice(-4)}` });
+    } catch (error) {
+        console.error("🔥 Set AI Key Error:", error);
+        res.status(500).json({ message: "บันทึก API key ไม่สำเร็จ" });
+    }
+};
+
+/**
+ * 8. ลบ API key ของวิชา (เฉพาะเจ้าของ) — เนื้อหาที่ AI สร้างไว้แล้วยังใช้ได้
+ */
+exports.clearAiKey = async (req, res) => {
+    try {
+        const course = await findOwnedCourse(req, res, req.params.courseId);
+        if (!course) return;
+        await clearCourseApiKey(course.id);
+        res.json({ message: "ลบ API key แล้ว" });
+    } catch (error) {
+        console.error("🔥 Clear AI Key Error:", error);
+        res.status(500).json({ message: "ลบ API key ไม่สำเร็จ" });
     }
 };

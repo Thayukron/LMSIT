@@ -21,6 +21,7 @@ export interface CourseSummary {
     passed_count: number;  // บทที่ผู้ใช้คนนี้สอบผ่านแล้ว
     quiz_count: number;    // ข้อสอบทั้งหมดในวิชา
     student_count: number; // นักเรียนที่เคยเข้าเรียน/สอบ
+    has_ai_key: number | boolean; // วิชานี้ตั้งค่า API key ของ AI แล้วหรือยัง
 }
 
 // บทเรียนในรายการของวิชา
@@ -32,9 +33,19 @@ export interface ModuleSummary {
 }
 
 // รายละเอียดวิชา (GET /api/courses/:courseId)
-export interface CourseDetail extends Omit<CourseSummary, 'module_count' | 'visited_count' | 'passed_count' | 'quiz_count' | 'student_count'> {
+export interface CourseDetail extends Omit<CourseSummary, 'module_count' | 'visited_count' | 'passed_count' | 'quiz_count' | 'student_count' | 'has_ai_key'> {
     modules: ModuleSummary[];
     can_edit: boolean;
+    ai: CourseAiStatus;
+}
+
+// สถานะ API key ของ AI ในวิชา (ครูเจ้าของได้ครบทุกช่อง คนอื่นได้แค่ ai_ready)
+export interface CourseAiStatus {
+    ai_ready: boolean;
+    has_key?: boolean;
+    hint?: string | null;
+    updated_at?: string | null;
+    shared_fallback?: boolean;
 }
 
 // รายละเอียดบทเรียน (GET /api/modules/:moduleId) — original_content มีเฉพาะครูเจ้าของวิชา
@@ -45,6 +56,8 @@ export interface ModuleDetail {
     course_title: string;
     created_at: string;
     can_edit: boolean;
+    ai_ready: boolean;        // สร้างเนื้อหาสไตล์ใหม่ได้ไหม (วิชามี API key)
+    cached_styles: string[];  // สไตล์ที่ AI สร้างไว้แล้ว เปิดได้ทันที
     original_content?: string;
 }
 
@@ -78,6 +91,44 @@ export interface StyledContent {
     key_terms: { term: string; meaning: string }[];
     key_points: string[];
     closing: string;
+}
+
+// ---------- รูปแบบเนื้อหาอื่นๆ (ต้องตรงกับ lessonFormats.js) ----------
+export interface ContentHeader {
+    headline: string;
+    emoji: string;
+    intro: string;
+    estimated_minutes: number;
+}
+
+export interface StoryContent extends ContentHeader {
+    characters: { name: string; emoji: string; description: string }[];
+    chapters: { title: string; emoji: string; scene: string; lesson: string }[];
+    quick_checks: QuickCheck[];
+    moral: string;
+    key_points: string[];
+}
+
+export interface ChatContent extends ContentHeader {
+    characters: { id: 'a' | 'b' | 'c'; name: string; emoji: string; role: string }[];
+    messages: { speaker: 'a' | 'b' | 'c'; kind: 'text' | 'tip' | 'question' | 'example'; text: string }[];
+    key_points: string[];
+}
+
+export interface FlashcardsContent extends ContentHeader {
+    cards: { emoji: string; front: string; back: string; hint?: string }[];
+}
+
+export interface MindmapContent extends ContentHeader {
+    center: { label: string; emoji: string };
+    branches: { label: string; emoji: string; note: string; children: { label: string; note: string }[] }[];
+    key_points: string[];
+}
+
+export interface PracticeContent extends ContentHeader {
+    matching: { instructions: string; pairs: { term: string; match: string }[] };
+    ordering: { instructions: string; items: string[] };
+    fill_blanks: { sentence: string; answer: string; choices: string[]; explanation: string }[];
 }
 
 export type AnswerKey = 'a' | 'b' | 'c' | 'd';

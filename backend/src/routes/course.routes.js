@@ -27,4 +27,8 @@ router.post('/:courseId/modules', teacherOnly, uploadSingle('file'), courseContr
 router.get('/:courseId/progress', progressController.getMyCourseProgress);
 router.get('/:courseId/report', teacherOnly, progressController.getCourseReport);
 
+// API key ของ AI สำหรับวิชา (เฉพาะเจ้าของ)
+router.put('/:courseId/ai-key', teacherOnly, courseController.setAiKey);
+router.delete('/:courseId/ai-key', teacherOnly, courseController.clearAiKey);
+
 module.exports = router;

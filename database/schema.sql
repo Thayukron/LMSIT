@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS courses (
     title       VARCHAR(255) NOT NULL,
     description TEXT,
     teacher_id  INT NULL,
+    -- Gemini API key ของครูสำหรับวิชานี้ (เข้ารหัส AES-256-GCM, ไม่ส่งกลับไปหน้าเว็บ)
+    ai_api_key_enc        TEXT NULL,
+    ai_api_key_hint       VARCHAR(16) NULL,
+    ai_api_key_updated_at TIMESTAMP NULL,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_courses_teacher FOREIGN KEY (teacher_id)
         REFERENCES users(id) ON DELETE SET NULL

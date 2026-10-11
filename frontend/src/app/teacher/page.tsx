@@ -32,7 +32,8 @@ function TeacherCourseCard({ course }: { course: CourseSummary }) {
                         </div>
                     ))}
                 </div>
-                {needsQuiz && <div className="mt-3 text-xs font-semibold text-amber-600">⚠ ยังไม่มีข้อสอบ — นักเรียนยังสอบไม่ได้</div>}
+                {!course.has_ai_key && <div className="mt-3 text-xs font-semibold text-amber-600">🔑 ยังไม่ได้ตั้งค่า AI ของวิชานี้</div>}
+                {needsQuiz && <div className="mt-1 text-xs font-semibold text-amber-600">⚠ ยังไม่มีข้อสอบ — นักเรียนยังสอบไม่ได้</div>}
                 <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-end text-sm font-semibold text-brand-600 gap-1 group-hover:gap-2 transition-all">
                     จัดการวิชา <ArrowRight size={16} />
                 </div>

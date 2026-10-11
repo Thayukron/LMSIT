@@ -1,44 +1,24 @@
 "use client";
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Clock, Layers, Target, Shuffle, ClipboardCheck, CheckCircle2, BookA, ChevronRight } from 'lucide-react';
+import React from 'react';
+import { Layers, Target, CheckCircle2, BookA } from 'lucide-react';
 import type { ModuleDetail, StyledContent } from '@/lib/types';
-import type { LEARNING_STYLES } from '@/lib/visual';
-import { Button, Card } from '@/components/ui';
+import type { LearningStyle } from '@/lib/visual';
+import { Card } from '@/components/ui';
 import LessonBlockCard, { BLOCK_META } from '@/components/lesson/LessonBlockCard';
 import QuickCheckCard from '@/components/lesson/QuickCheckCard';
 import InlineMarkdown from '@/components/lesson/InlineMarkdown';
+import { KeyPoints, LessonFinish, LessonHero, MetaChip, ReadingProgress } from '@/components/lesson/LessonFrame';
 
-type Style = typeof LEARNING_STYLES[number];
-
-// แถบความคืบหน้าการอ่าน (ติดใต้แถบเมนูด้านบน)
-function ReadingProgress() {
-    const [progress, setProgress] = useState(0);
-    useEffect(() => {
-        const update = () => {
-            const max = document.documentElement.scrollHeight - window.innerHeight;
-            setProgress(max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 0);
-        };
-        update();
-        window.addEventListener('scroll', update, { passive: true });
-        return () => window.removeEventListener('scroll', update);
-    }, []);
-    return (
-        <div className="fixed top-16 inset-x-0 h-1 z-30 bg-transparent" aria-hidden="true">
-            <div className="h-full bg-gradient-to-r from-brand-500 via-accent-500 to-warm-400 transition-[width] duration-150" style={{ width: `${progress}%` }} />
-        </div>
-    );
-}
-
-interface LessonReaderProps {
-    content: StyledContent;
-    style: Style;
+export interface ReaderProps<T> {
+    content: T;
+    style: LearningStyle;
     moduleInfo: ModuleDetail;
     hasQuiz: boolean;
     onChangeStyle: () => void;
 }
 
-export default function LessonReader({ content, style, moduleInfo, hasQuiz, onChangeStyle }: LessonReaderProps) {
+// บทเรียนแบบบล็อก (สไตล์อ่าน: เพื่อนติวเพื่อน, สรุป, เคสจริง, ภารกิจ, เด็ก 10 ขวบ)
+export default function LessonReader({ content, style, moduleInfo, hasQuiz, onChangeStyle }: ReaderProps<StyledContent>) {
     const sections = content.sections ?? [];
     const checks = content.quick_checks ?? [];
     // คำถามที่ระบุตำแหน่งเกินจำนวนบล็อก ให้ไปแสดงท้ายบล็อกสุดท้าย
@@ -47,36 +27,8 @@ export default function LessonReader({ content, style, moduleInfo, hasQuiz, onCh
     return (
         <div className="-mt-2">
             <ReadingProgress />
-
-            {/* Hero */}
-            <header className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br ${style.gradient} text-white p-6 sm:p-12 animate-fade-up`}>
-                <div className="absolute inset-0 bg-dots opacity-25" aria-hidden="true" />
-                <span className="absolute -right-6 -bottom-10 text-[11rem] opacity-20 select-none" aria-hidden="true">{content.emoji}</span>
-                <div className="relative max-w-3xl">
-                    <div className="flex flex-wrap items-center gap-3 text-sm">
-                        <Link href={`/student/courses/${moduleInfo.course_id}`} className="inline-flex items-center gap-1.5 text-white/85 hover:text-white">
-                            <ArrowLeft size={16} /> {moduleInfo.course_title}
-                        </Link>
-                        <ChevronRight size={14} className="text-white/50" />
-                        <span className="text-white/85 truncate">{moduleInfo.title}</span>
-                    </div>
-                    <div className="mt-6 flex flex-wrap gap-2 text-sm font-semibold">
-                        <span className="rounded-full bg-white/20 backdrop-blur px-3 py-1">{style.emoji} {style.name}</span>
-                        <span className="rounded-full bg-white/20 backdrop-blur px-3 py-1 inline-flex items-center gap-1.5"><Clock size={14} /> {content.estimated_minutes || 5} นาที</span>
-                        <span className="rounded-full bg-white/20 backdrop-blur px-3 py-1 inline-flex items-center gap-1.5"><Layers size={14} /> {sections.length} หัวข้อ</span>
-                    </div>
-                    <h1 className="mt-5 text-3xl sm:text-5xl font-extrabold leading-tight">
-                        <span className="mr-3" aria-hidden="true">{content.emoji}</span>{content.headline}
-                    </h1>
-                    <p className="mt-5 text-lg sm:text-xl text-white/90 leading-relaxed"><InlineMarkdown>{content.intro}</InlineMarkdown></p>
-                    <div className="mt-8 flex flex-wrap gap-3">
-                        <Button href="#block-0" variant="white" size="lg">เริ่มอ่านเลย</Button>
-                        <Button onClick={onChangeStyle} variant="ghost" size="lg" className="text-white hover:bg-white/15 hover:text-white">
-                            <Shuffle size={18} /> เปลี่ยนสไตล์
-                        </Button>
-                    </div>
-                </div>
-            </header>
+            <LessonHero content={content} style={style} moduleInfo={moduleInfo} onChangeStyle={onChangeStyle}
+                startHref="#block-0" startLabel="เริ่มอ่านเลย" meta={<MetaChip><Layers size={14} /> {sections.length} หัวข้อ</MetaChip>} />
 
             <div className="mt-10 grid lg:grid-cols-[1fr_260px] gap-10">
                 <article className="min-w-0 max-w-3xl space-y-8">
@@ -114,31 +66,8 @@ export default function LessonReader({ content, style, moduleInfo, hasQuiz, onCh
                         </section>
                     )}
 
-                    {content.key_points?.length > 0 && (
-                        <section id="summary" className="scroll-mt-28 rounded-3xl bg-ink text-white p-6 sm:p-10">
-                            <h2 className="text-2xl font-bold">📌 สรุปสิ่งที่ต้องจำ</h2>
-                            <ol className="mt-6 space-y-4">
-                                {content.key_points.map((p, i) => (
-                                    <li key={i} className="flex gap-4">
-                                        <span className="font-display text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-brand-300 to-accent-300 shrink-0 w-8">{String(i + 1).padStart(2, '0')}</span>
-                                        <span className="text-white/90 leading-7 pt-1 [&_strong]:text-white"><InlineMarkdown>{p}</InlineMarkdown></span>
-                                    </li>
-                                ))}
-                            </ol>
-                        </section>
-                    )}
-
-                    <section className="rounded-3xl bg-gradient-to-br from-brand-50 via-white to-accent-50 ring-1 ring-brand-100 p-6 sm:p-10 text-center">
-                        <div className="text-5xl" aria-hidden="true">🏁</div>
-                        <h2 className="mt-4 text-2xl font-bold text-ink">อ่านจบแล้ว เก่งมาก!</h2>
-                        {content.closing && <p className="mt-3 text-slate-600 max-w-xl mx-auto leading-7"><InlineMarkdown>{content.closing}</InlineMarkdown></p>}
-                        <div className="mt-6 flex flex-wrap justify-center gap-3">
-                            {hasQuiz
-                                ? <Button href={`/student/modules/${moduleInfo.id}/quiz`} size="lg"><ClipboardCheck size={18} /> ทำแบบทดสอบ</Button>
-                                : <span className="text-sm text-slate-500">บทเรียนนี้ยังไม่มีแบบทดสอบ</span>}
-                            <Button onClick={onChangeStyle} variant="secondary" size="lg"><Shuffle size={18} /> ลองอ่านสไตล์อื่น</Button>
-                        </div>
-                    </section>
+                    <KeyPoints points={content.key_points} />
+                    <LessonFinish moduleInfo={moduleInfo} hasQuiz={hasQuiz} onChangeStyle={onChangeStyle} message={content.closing} title="อ่านจบแล้ว เก่งมาก!" />
                 </article>
 
                 {/* สารบัญ (จอใหญ่) */}

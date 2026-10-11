@@ -1,22 +1,46 @@
 // backend/src/services/ai.service.js
 const { GoogleGenAI } = require("@google/genai");
 const db = require('../config/db');
+const { STYLES } = require('./lessonFormats');
+const { AiKeyMissingError } = require('./aiKey.service');
 
-// ลำดับ model ที่จะลอง: ถ้าตัวแรกไม่ว่าง (503/429) หรือช้าเกินไป จะสลับไปตัวถัดไป
-// ตั้งค่าเองได้ใน .env เช่น GEMINI_MODELS=gemini-2.5-flash,gemini-3.8-flash
-const MODELS = (process.env.GEMINI_MODELS || 'gemini-2.5-flash,gemini-3.8-flash,gemini-2.5-flash-lite')
+// ลำดับ model ที่จะลอง: ถ้าตัวแรกไม่ว่าง/โควตาหมด/ช้าเกินไป จะสลับไปตัวถัดไป
+// Gemini แบบฟรีให้ ~20 ครั้ง/วัน "ต่อ model" — ใส่หลาย model = ได้โควตารวมมากขึ้น
+// ตั้งค่าเองได้ใน .env: GEMINI_MODELS=gemini-3.5-flash,gemini-2.5-flash
+const MODELS = (process.env.GEMINI_MODELS || 'gemini-3.5-flash,gemini-3.6-flash,gemini-2.5-flash,gemini-3.8-flash,gemini-3.5-flash-lite')
     .split(',').map(s => s.trim()).filter(Boolean);
-// ต่อ model — ลองครบ 3 model ได้ภายในเวลาที่ Next.js รอ Backend (150 วินาที)
-const REQUEST_TIMEOUT_MS = 45000;
+const REQUEST_TIMEOUT_MS = 45000; // ต่อ model
+const TOTAL_BUDGET_MS = 130000;   // รวมทุก model — ต้องน้อยกว่าเวลาที่ Next.js รอ Backend (150 วินาที)
 
-// เก็บเนื้อหาแต่ละสไตล์ไว้สูงสุดกี่เวอร์ชัน (สุ่มแสดง เพื่อให้นักเรียนได้เนื้อหาหลากหลาย)
-const MAX_VERSIONS = 3;
+// เก็บเนื้อหาแต่ละสไตล์ไว้สูงสุดกี่เวอร์ชัน (สุ่มแสดงให้หลากหลาย) — ค่าเริ่มต้น 1 เพื่อประหยัดโควตาของ key ฟรี
+const MAX_VERSIONS = Math.min(3, Math.max(1, Number(process.env.AI_CACHE_VERSIONS) || 1));
 
-const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    // ไม่ให้ SDK ลองซ้ำเอง (ค่าเริ่มต้นลองซ้ำนานหลายนาที) — เราสลับ model เองแทน
-    httpOptions: { timeout: REQUEST_TIMEOUT_MS, retryOptions: { attempts: 1 } },
-});
+// model ที่ใช้ไม่ได้ชั่วคราวต่อ key (โควตาหมด / ไม่มี model นี้) — ข้ามไปจนถึงเวลาที่กำหนด ไม่ต้องลองซ้ำให้เสียเวลา
+const cooldowns = new Map(); // `${apiKey}|${model}` → timestamp ที่ลองใหม่ได้
+
+// อ่านเวลาที่ Google บอกให้รอ (เช่น "retryDelay":"39723s") ไม่พบให้รอ 60 วินาที
+const retryDelayMs = (error) => {
+    const m = String(error?.message).match(/"retryDelay"\s*:\s*"(\d+)s"/);
+    return m ? Number(m[1]) * 1000 : 60000;
+};
+
+// error เมื่อทุก model โควตาหมด — controller ใช้บอกผู้ใช้ให้ชัด
+class AiQuotaError extends Error {
+    constructor() { super('AI quota exceeded for all models'); this.code = 'AI_QUOTA'; }
+}
+
+// ตัวเชื่อมต่อ Gemini แยกตาม API key (ครูแต่ละวิชาใช้ key ของตัวเอง) — สร้างครั้งเดียวต่อ key แล้วใช้ซ้ำ
+const clients = new Map();
+const clientFor = (apiKey) => {
+    if (!clients.has(apiKey)) {
+        clients.set(apiKey, new GoogleGenAI({
+            apiKey,
+            // ไม่ให้ SDK ลองซ้ำเอง (ค่าเริ่มต้นลองซ้ำนานหลายนาที) — เราสลับ model เองแทน
+            httpOptions: { timeout: REQUEST_TIMEOUT_MS, retryOptions: { attempts: 1 } },
+        }));
+    }
+    return clients.get(apiKey);
+};
 
 // error ที่ลองกับ model อื่นแล้วอาจสำเร็จ (ไม่มี model นี้ / ไม่ว่าง / ล่ม / หมดเวลา / ตอบผิดรูปแบบ)
 const isRetryable = (error) => {
@@ -28,15 +52,25 @@ const isRetryable = (error) => {
  * เรียก AI ให้ตอบเป็น JSON ตาม schema แล้วตรวจความถูกต้องด้วย validate()
  * ลองทีละ model ตามลำดับ จนกว่าจะได้ผลที่ใช้ได้
  */
-const generateJson = async ({ prompt, schema, temperature, validate }) => {
+const generateJson = async ({ apiKey, prompt, schema, temperature, validate }) => {
+    if (!apiKey) throw new AiKeyMissingError();
+    const deadline = Date.now() + TOTAL_BUDGET_MS;
     let lastError;
+    let quotaOnly = true; // ทุก model ที่ล้มเหลวเป็นเพราะโควตาหมด/พักอยู่ใช่ไหม
     for (const model of MODELS) {
+        const cooldownKey = `${apiKey}|${model}`;
+        if ((cooldowns.get(cooldownKey) ?? 0) > Date.now()) continue; // พักอยู่ (โควตาหมด) ข้ามไป
+        const remaining = deadline - Date.now();
+        if (remaining < 5000) break; // เวลาไม่พอสำหรับ model ถัดไป
         const started = Date.now();
         try {
-            const response = await ai.models.generateContent({
+            const response = await clientFor(apiKey).models.generateContent({
                 model,
                 contents: prompt,
-                config: { responseMimeType: 'application/json', responseJsonSchema: schema, temperature },
+                config: {
+                    responseMimeType: 'application/json', responseJsonSchema: schema, temperature,
+                    httpOptions: { timeout: Math.min(REQUEST_TIMEOUT_MS, remaining) },
+                },
             });
             const data = JSON.parse(response.text);
             const invalid = validate(data);
@@ -45,138 +79,25 @@ const generateJson = async ({ prompt, schema, temperature, validate }) => {
             return data;
         } catch (error) {
             lastError = error;
+            const status = Number(error.status);
             console.warn(`⚠️ ${model} ใช้ไม่ได้ (${error.status || error.name}: ${String(error.message).slice(0, 120)})`);
-            if (!isRetryable(error)) break; // เช่น API key ผิด (401/403) หรือคำขอผิด (400) — ลอง model อื่นก็ไม่ช่วย
+            if (status === 429) cooldowns.set(cooldownKey, Date.now() + retryDelayMs(error));
+            else if (status === 404) cooldowns.set(cooldownKey, Date.now() + 24 * 3600 * 1000); // ไม่มี model นี้สำหรับ key นี้
+            if (status !== 429 && status !== 404) quotaOnly = false;
+            if (!isRetryable(error)) throw error; // เช่น API key ผิด (401/403) หรือคำขอผิด (400) — ลอง model อื่นก็ไม่ช่วย
         }
     }
+    // ไม่มี model ไหนใช้ได้เพราะโควตาหมดทั้งหมด (หรือพักอยู่ทั้งหมด)
+    if (quotaOnly) throw new AiQuotaError();
     throw lastError;
 };
 
 // ---------------------------------------------------------------
-// 1. เนื้อหาบทเรียนตามสไตล์การเรียน
+// 1. เนื้อหาบทเรียนตามสไตล์การเรียน (รูปแบบทั้งหมดอยู่ใน lessonFormats.js)
 // ---------------------------------------------------------------
 
-// คำอธิบายแต่ละสไตล์ให้ AI (key ต้องตรงกับ ALLOWED_STYLES ใน module.controller)
-const STYLE_GUIDES = {
-    peer_to_peer: `สไตล์ "เพื่อนติวเพื่อน"
-- น้ำเสียง: รุ่นพี่ใจดีที่เก่งเรื่องนี้ มานั่งติวให้ตัวต่อตัว ใช้ "เรา" "นาย/เธอ" ได้ เป็นกันเองแต่สุภาพ มีมุกเบาๆ ได้
-- ชอบเปรียบเทียบเรื่องยากกับของใกล้ตัว (มือถือ เกม ร้านกาแฟ ห้องเรียน) ใช้บล็อก analogy อย่างน้อย 1 บล็อก
-- อธิบายศัพท์เทคนิคทันทีด้วยภาษาบ้านๆ และบอกว่า "จุดที่คนมักงง" คืออะไร (บล็อก warning หรือ tip)`,
-    summary: `สไตล์ "สรุปเน้นๆ"
-- น้ำเสียง: โค้ชที่เคารพเวลาผู้เรียน กระชับ ตรงประเด็น
-- แต่ละบล็อกสั้น ใช้ bullet point และ **ตัวหนา** กับคำสำคัญ ไม่เกิน 4-6 บรรทัดต่อบล็อก
-- เน้นบล็อก concept, steps, fact และ key_terms ให้ครบทุกคำนิยามสำคัญ`,
-    example_based: `สไตล์ "เรียนจากเคสจริง"
-- น้ำเสียง: ผู้เชี่ยวชาญที่เล่าประสบการณ์จากการทำงานจริง
-- เปิดแต่ละหัวข้อด้วยสถานการณ์/เคสที่จับต้องได้ (บล็อก example หรือ story) แล้วค่อยสรุปหลักการ (บล็อก concept)
-- ตัวอย่างต้องเฉพาะเจาะจง มีชื่อคน สถานที่ ตัวเลข ให้เห็นภาพ`,
-    gamified: `สไตล์ "ภารกิจเกม"
-- น้ำเสียง: ผู้บรรยายเกมผจญภัย ผู้เรียนคือ "ผู้กล้า" ที่ต้องผ่านด่าน เก็บไอเทมความรู้
-- ตั้งชื่อบล็อกเป็นด่าน เช่น "ด่าน 1: ..." ใช้บล็อก mission เป็นหลัก แทรก story และ tip (เป็น "ไอเทมลับ")
-- สนุกและมีพลัง แต่เนื้อหาความรู้ต้องถูกต้องครบถ้วน ห้ามให้เรื่องเล่ากลบเนื้อหา`,
-};
-
-// ชนิดบล็อกเนื้อหา — หน้าเว็บแสดงแต่ละชนิดด้วยสีและไอคอนต่างกัน
-const BLOCK_TYPES = ['concept', 'example', 'analogy', 'steps', 'tip', 'warning', 'story', 'mission', 'fact'];
-
-const STYLED_CONTENT_SCHEMA = {
-    type: 'object',
-    properties: {
-        headline: { type: 'string', description: 'ชื่อบทเรียนที่ดึงดูด ไม่เกิน 60 ตัวอักษร' },
-        emoji: { type: 'string', description: 'อีโมจิ 1 ตัวที่แทนบทเรียนนี้' },
-        intro: { type: 'string', description: 'คำโปรยเปิดเรื่อง 2-3 ประโยค ชวนให้อยากอ่านต่อ (hook)' },
-        estimated_minutes: { type: 'integer', description: 'เวลาอ่านโดยประมาณ (นาที)' },
-        objectives: { type: 'array', items: { type: 'string' }, description: 'เรียนจบแล้วจะทำอะไรได้ 2-4 ข้อ' },
-        sections: {
-            type: 'array',
-            description: '4-8 บล็อก ใช้ชนิดบล็อกให้หลากหลาย',
-            items: {
-                type: 'object',
-                properties: {
-                    type: { type: 'string', enum: BLOCK_TYPES },
-                    emoji: { type: 'string' },
-                    title: { type: 'string' },
-                    content: { type: 'string', description: 'Markdown: ย่อหน้าสั้น, **ตัวหนา**, bullet, ตาราง ได้' },
-                    highlight: { type: 'string', description: 'ประโยคเด็ด 1 ประโยคที่ควรจำจากบล็อกนี้ (ไม่บังคับ)' },
-                },
-                required: ['type', 'emoji', 'title', 'content'],
-            },
-        },
-        quick_checks: {
-            type: 'array',
-            description: 'คำถามเช็กความเข้าใจระหว่างอ่าน 2-3 ข้อ',
-            items: {
-                type: 'object',
-                properties: {
-                    after_section: { type: 'integer', description: 'แสดงหลังบล็อกลำดับที่เท่าไร (เริ่มที่ 0)' },
-                    question: { type: 'string' },
-                    choices: { type: 'array', items: { type: 'string' }, description: '3-4 ตัวเลือก' },
-                    answer_index: { type: 'integer', description: 'ตำแหน่งคำตอบที่ถูกใน choices (เริ่มที่ 0)' },
-                    explanation: { type: 'string', description: 'อธิบายสั้นๆ ว่าทำไมคำตอบนี้ถูก' },
-                },
-                required: ['after_section', 'question', 'choices', 'answer_index', 'explanation'],
-            },
-        },
-        key_terms: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: { term: { type: 'string' }, meaning: { type: 'string' } },
-                required: ['term', 'meaning'],
-            },
-        },
-        key_points: { type: 'array', items: { type: 'string' }, description: 'สรุปสิ่งที่ต้องจำ 3-5 ข้อ' },
-        closing: { type: 'string', description: 'ข้อความปิดท้าย 1-2 ประโยค ชวนไปทำแบบทดสอบ' },
-    },
-    required: ['headline', 'emoji', 'intro', 'estimated_minutes', 'objectives', 'sections', 'quick_checks', 'key_terms', 'key_points', 'closing'],
-};
-
-const isNonEmptyString = (v) => typeof v === 'string' && v.trim() !== '';
-const isStringArray = (v) => Array.isArray(v) && v.every(x => typeof x === 'string');
-
-// ตรวจเนื้อหาที่ AI สร้าง (ใช้ทั้งตอนได้จาก AI และตอนอ่านจาก cache) — คืนข้อความ error หรือ null
-// cache รูปแบบเก่าจะไม่ผ่าน แล้วถูกสร้างใหม่อัตโนมัติ
-const styledContentError = (data) => {
-    if (!data || typeof data !== 'object') return 'ไม่ใช่ object';
-    if (!isNonEmptyString(data.headline) || !isNonEmptyString(data.intro)) return 'ไม่มี headline/intro';
-    if (!isStringArray(data.objectives) || !isStringArray(data.key_points)) return 'objectives/key_points ไม่ถูกต้อง';
-    if (!Array.isArray(data.sections) || data.sections.length < 2) return 'sections น้อยเกินไป';
-    if (data.sections.some(s => !BLOCK_TYPES.includes(s?.type) || !isNonEmptyString(s.title) || !isNonEmptyString(s.content))) {
-        return 'section ไม่ครบหรือชนิดไม่ถูกต้อง';
-    }
-    if (!Array.isArray(data.quick_checks) || data.quick_checks.some(q =>
-        !isNonEmptyString(q?.question) || !isStringArray(q.choices) || q.choices.length < 2 ||
-        !Number.isInteger(q.answer_index) || q.answer_index < 0 || q.answer_index >= q.choices.length)) {
-        return 'quick_checks ไม่ถูกต้อง';
-    }
-    if (!Array.isArray(data.key_terms) || data.key_terms.some(t => !isNonEmptyString(t?.term) || !isNonEmptyString(t.meaning))) {
-        return 'key_terms ไม่ถูกต้อง';
-    }
-    return null;
-};
-
-const buildStylePrompt = (styleType, originalText) => `คุณคือนักออกแบบการเรียนรู้ระดับมืออาชีพ ที่เขียนบทเรียนออนไลน์ภาษาไทยได้สนุก อ่านง่าย และจำได้จริง
-จงเปลี่ยนเนื้อหาต้นฉบับด้านล่างให้เป็นบทเรียนที่น่าเรียน ตามสไตล์นี้:
-
-${STYLE_GUIDES[styleType]}
-
-หลักการเขียนที่ต้องทำทุกสไตล์:
-1. ความถูกต้องมาก่อน: ครอบคลุมเนื้อหาสำคัญทั้งหมดของต้นฉบับ ห้ามแต่งข้อเท็จจริงที่ต้นฉบับไม่มี (ตัวอย่าง/การเปรียบเทียบที่แต่งขึ้นเพื่ออธิบายทำได้)
-2. ห้ามเขียนเป็นก้อนข้อความยาว: ย่อหน้าละ 1-3 ประโยค ใช้ bullet, **ตัวหนา**กับคำสำคัญ และตาราง Markdown เมื่อเปรียบเทียบหลายสิ่ง
-3. เปิดเรื่องด้วยคำถามหรือสถานการณ์ที่ทำให้ผู้เรียนอยากรู้ ไม่ใช่ประโยคนิยามแห้งๆ
-4. ใช้ชนิดบล็อกให้หลากหลายอย่างน้อย 4 ชนิด:
-   concept = อธิบายแนวคิดหลัก | example = ตัวอย่างจริง | analogy = เปรียบเทียบกับสิ่งใกล้ตัว
-   steps = ขั้นตอน/ลำดับ (ใช้ list มีเลข) | tip = เคล็ดลับ | warning = จุดที่มักเข้าใจผิด
-   story = เรื่องเล่าสั้น | mission = ภารกิจ/ด่าน | fact = รู้หรือไม่? ข้อมูลน่าสนใจ
-5. ทุกบล็อกมีอีโมจิที่เข้ากับหัวข้อ และ highlight เป็นประโยคเด็ดที่ควรจำ (ถ้ามี)
-6. quick_checks ถามความเข้าใจ ไม่ใช่ถามจำคำ และวางไว้หลังบล็อกที่เกี่ยวข้อง (choices ไม่ต้องใส่ ก. ข. หรือ A. B. นำหน้า)
-7. key_terms คือศัพท์สำคัญพร้อมความหมายภาษาง่าย
-8. ภาษาไทยเป็นธรรมชาติ ไม่แปลตรงตัว ไม่ใช้คำฟุ่มเฟือย
-
-เนื้อหาต้นฉบับ:
-"""
-${originalText}
-"""`;
+// ตรวจเนื้อหาของสไตล์นั้นๆ (ใช้ทั้งตอนได้จาก AI และตอนอ่านจาก cache) — คืนข้อความ error หรือ null
+const styledContentError = (styleType, data) => STYLES[styleType].validate(data);
 
 // งานสร้างเนื้อหาที่กำลังทำอยู่ (กันนักเรียนหลายคนเปิดพร้อมกันแล้ว AI สร้างซ้ำ)
 const inflight = new Map();
@@ -185,17 +106,19 @@ const inflight = new Map();
  * สร้างเนื้อหาเวอร์ชันใหม่ 1 เวอร์ชันแล้วบันทึกลง cache
  * ถ้ามีงานเดียวกันกำลังทำอยู่ จะรอผลของงานนั้นแทนการเรียก AI ซ้ำ
  */
-const generateVersion = (moduleId, styleType, originalText) => {
+const generateVersion = (moduleId, styleType, originalText, apiKey) => {
     const key = `${moduleId}:${styleType}`;
     if (inflight.has(key)) return inflight.get(key);
 
     const job = (async () => {
         console.log(`🤖 AI กำลังสร้างเนื้อหาใหม่: Module ${moduleId}, Style ${styleType}`);
+        const style = STYLES[styleType];
         const data = await generateJson({
-            prompt: buildStylePrompt(styleType, originalText),
-            schema: STYLED_CONTENT_SCHEMA,
-            temperature: 0.8, // เพิ่มความคิดสร้างสรรค์ให้แต่ละเวอร์ชันแตกต่างกัน
-            validate: styledContentError,
+            apiKey,
+            prompt: style.prompt(originalText),
+            schema: style.schema,
+            temperature: style.temperature, // ค่าสูง = แต่ละเวอร์ชันแตกต่างกันมากขึ้น
+            validate: style.validate,
         });
         const body = JSON.stringify(data);
 
@@ -227,9 +150,10 @@ const generateVersion = (moduleId, styleType, originalText) => {
  * - มี cache แล้ว: สุ่ม 1 เวอร์ชันส่งทันที และถ้ายังไม่ครบ MAX_VERSIONS จะสร้างเวอร์ชันใหม่เพิ่มเบื้องหลัง
  * - ยังไม่มี cache: รอ AI สร้างเวอร์ชันแรก
  * - cache ที่เสีย (JSON ผิดรูปแบบ) จะถูกลบทิ้งแล้วสร้างใหม่
+ * - apiKey = key ของวิชา (null ถ้ายังไม่ได้ตั้งค่า: ยังเปิด cache ได้ แต่สร้างใหม่ไม่ได้)
  */
-const getStyledContent = async (moduleId, styleType, originalText) => {
-    if (!STYLE_GUIDES[styleType]) throw new Error(`Unknown style: ${styleType}`);
+const getStyledContent = async (moduleId, styleType, originalText, apiKey) => {
+    if (!STYLES[styleType]) throw new Error(`Unknown style: ${styleType}`);
 
     const [rows] = await db.query(
         "SELECT id, content_body FROM content_styles WHERE module_id = ? AND style_type = ?",
@@ -240,7 +164,7 @@ const getStyledContent = async (moduleId, styleType, originalText) => {
     for (const row of rows) {
         let data;
         try { data = JSON.parse(row.content_body); } catch { data = null; }
-        if (styledContentError(data)) {
+        if (styledContentError(styleType, data)) {
             console.warn(`🧹 ลบ cache ที่เสีย: content_styles.id=${row.id}`);
             await db.query("DELETE FROM content_styles WHERE id = ?", [row.id]);
         } else {
@@ -248,10 +172,10 @@ const getStyledContent = async (moduleId, styleType, originalText) => {
         }
     }
 
-    if (valid.length === 0) return generateVersion(moduleId, styleType, originalText);
+    if (valid.length === 0) return generateVersion(moduleId, styleType, originalText, apiKey);
 
-    if (valid.length < MAX_VERSIONS) {
-        generateVersion(moduleId, styleType, originalText)
+    if (valid.length < MAX_VERSIONS && apiKey) {
+        generateVersion(moduleId, styleType, originalText, apiKey)
             .catch(error => console.warn(`⚠️ สร้างเวอร์ชันเพิ่มเบื้องหลังไม่สำเร็จ: ${error.message}`));
     }
     console.log(`📦 ใช้เนื้อหาจาก Cache: Module ${moduleId}, Style ${styleType} (${valid.length} เวอร์ชัน)`);
@@ -283,9 +207,10 @@ const quizListError = (data) => (Array.isArray(data) ? null : 'ไม่ใช�
 /**
  * 2. แยกข้อสอบจากข้อความที่ครูวางมา
  */
-const parseQuizWithAI = async (rawText) => {
+const parseQuizWithAI = async (rawText, apiKey) => {
     console.log("🤖 AI กำลังวิเคราะห์ข้อสอบจาก Raw Text...");
     return generateJson({
+        apiKey,
         prompt: `จงแยกข้อสอบปรนัยทุกข้อจากข้อความต่อไปนี้ออกมาเป็นรายการ
 - คัดลอกคำถามและตัวเลือกตามต้นฉบับ (ตัดเลขข้อ และตัวอักษรนำหน้าตัวเลือก เช่น ก. ข. A) ออก)
 - ตัวเลือกที่ 1-4 ให้เป็น option_a ถึง option_d ตามลำดับ (ก=a, ข=b, ค=c, ง=d)
@@ -305,9 +230,10 @@ ${rawText}
 /**
  * 3. ให้ AI ออกข้อสอบปรนัยจากเนื้อหาบทเรียน
  */
-const generateQuizFromContent = async (content, count) => {
+const generateQuizFromContent = async (content, count, apiKey) => {
     console.log(`🤖 AI กำลังออกข้อสอบ ${count} ข้อจากเนื้อหาบทเรียน...`);
     return generateJson({
+        apiKey,
         prompt: `คุณคือครูผู้เชี่ยวชาญด้านการวัดผล
 จงออกข้อสอบปรนัย 4 ตัวเลือก จำนวน ${count} ข้อ เป็นภาษาไทย จากเนื้อหาบทเรียนต่อไปนี้
 
@@ -327,4 +253,4 @@ ${content}
     });
 };
 
-module.exports = { getStyledContent, parseQuizWithAI, generateQuizFromContent, styledContentError, MODELS };
+module.exports = { getStyledContent, parseQuizWithAI, generateQuizFromContent, styledContentError, MODELS, MAX_VERSIONS };

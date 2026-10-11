@@ -2,11 +2,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, BarChart3, Eye, ListChecks, Pencil, Trash2, Settings2, Plus, Layers } from 'lucide-react';
+import { ArrowLeft, BarChart3, Eye, ListChecks, Pencil, Trash2, Settings2, Plus, Layers, KeyRound } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { CourseDetail } from '@/lib/types';
 import { Alert, Badge, Button, Card, EmptyState, PageLoader } from '@/components/ui';
 import Modal from '@/components/Modal';
+import AiKeySettings, { AiStatusBadge } from '@/components/teacher/AiKeySettings';
 import CourseForm from '@/components/teacher/CourseForm';
 import AddModuleForm from '@/components/teacher/AddModuleForm';
 import { courseCover } from '@/lib/visual';
@@ -19,6 +20,8 @@ export default function TeacherCoursePage() {
     const [editing, setEditing] = useState(false);
     const [notice, setNotice] = useState('');
     const closeEdit = useCallback(() => setEditing(false), []);
+    const [aiOpen, setAiOpen] = useState(false);
+    const closeAi = useCallback(() => setAiOpen(false), []);
 
     const loadCourse = useCallback(() => {
         apiFetch<CourseDetail>(`/api/courses/${courseId}`)
@@ -62,15 +65,26 @@ export default function TeacherCoursePage() {
                     <div className="mt-5 flex flex-wrap gap-2 text-sm">
                         <span className="rounded-full bg-white/20 px-3 py-1 backdrop-blur">📚 {course.modules.length} บทเรียน</span>
                         <span className="rounded-full bg-white/20 px-3 py-1 backdrop-blur">📝 {quizTotal} ข้อสอบ</span>
+                        <button onClick={() => setAiOpen(true)} className="rounded-full bg-white px-1 py-0.5 hover:scale-105 transition" aria-label="ตั้งค่า AI ของวิชา">
+                            <AiStatusBadge ready={!!course.ai?.has_key} hint={course.ai?.hint} />
+                        </button>
                     </div>
                     <div className="mt-6 flex flex-wrap gap-2">
                         <Button href={`/teacher/courses/${course.id}/report`} variant="white"><BarChart3 size={18} /> รายงานผลการเรียน</Button>
                         <Button href={`/student/courses/${course.id}`} variant="ghost" className="text-white hover:bg-white/15 hover:text-white"><Eye size={18} /> ดูแบบนักเรียน</Button>
+                        <Button onClick={() => setAiOpen(true)} variant="ghost" className="text-white hover:bg-white/15 hover:text-white"><KeyRound size={18} /> ตั้งค่า AI</Button>
                         <Button onClick={() => setEditing(true)} variant="ghost" className="text-white hover:bg-white/15 hover:text-white"><Settings2 size={18} /> แก้ไขข้อมูลวิชา</Button>
                         <Button onClick={deleteCourse} variant="ghost" className="text-white/80 hover:bg-red-500/80 hover:text-white"><Trash2 size={18} /> ลบวิชา</Button>
                     </div>
                 </div>
             </section>
+
+            {!course.ai?.ai_ready && (
+                <Alert tone="warning">
+                    วิชานี้ยังไม่ได้ตั้งค่า API key ของ AI — นักเรียนจะเลือกสไตล์การเรียนใหม่ไม่ได้ และคุณจะใช้ AI ออกข้อสอบไม่ได้
+                    <button onClick={() => setAiOpen(true)} className="ml-2 font-semibold underline">ตั้งค่าตอนนี้</button>
+                </Alert>
+            )}
 
             <div className="grid lg:grid-cols-5 gap-8 items-start">
                 <section className="lg:col-span-3">
@@ -114,6 +128,10 @@ export default function TeacherCoursePage() {
                     </Card>
                 </aside>
             </div>
+
+            <Modal open={aiOpen} title="ตั้งค่า AI ของวิชา" onClose={closeAi}>
+                <AiKeySettings courseId={course.id} status={course.ai ?? { ai_ready: false }} onSaved={loadCourse} />
+            </Modal>
 
             <Modal open={editing} title="แก้ไขข้อมูลวิชา" onClose={closeEdit}>
                 <CourseForm initial={course} submitLabel="บันทึก" onSubmit={updateCourse} onCancel={closeEdit} />

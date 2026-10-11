@@ -4,9 +4,37 @@ const aiService = require('../services/ai.service');
 const { toId, findOwnedModule } = require('../utils/access');
 const { MAX_CONTENT_LENGTH } = require('../services/parser.service');
 const { toQuizRows, normalizeQuiz, extractQuizArray } = require('../utils/quiz');
+const { STYLE_IDS } = require('../services/lessonFormats');
+const { getCourseApiKey, sharedKeyAllowed } = require('../services/aiKey.service');
 
-// สไตล์การเรียนที่รองรับ (ต้องตรงกับหน้าเลือกสไตล์ฝั่ง Frontend)
-const ALLOWED_STYLES = ['peer_to_peer', 'summary', 'example_based', 'gamified'];
+// แปลง error จาก AI เป็นคำตอบที่ผู้ใช้เข้าใจ: ยังไม่ตั้งค่า key / key ใช้ไม่ได้ / AI ไม่ว่าง
+const sendAiError = (res, error, { isTeacher, busyMessage }) => {
+    if (error.code === 'AI_KEY_MISSING') {
+        return res.status(503).json({
+            code: 'AI_KEY_MISSING',
+            message: isTeacher
+                ? 'วิชานี้ยังไม่ได้ตั้งค่า API key ของ AI — ไปที่หน้าจัดการวิชา แล้วกด "ตั้งค่า AI"'
+                : 'ครูผู้สอนยังไม่ได้เปิดใช้ AI สำหรับวิชานี้ กรุณาแจ้งครูผู้สอน',
+        });
+    }
+    if (error.code === 'AI_QUOTA') {
+        return res.status(503).json({
+            code: 'AI_QUOTA',
+            message: isTeacher
+                ? 'API key ของวิชานี้ใช้ครบโควตาแล้ว (แบบฟรีได้ประมาณ 20 ครั้ง/วัน ต่อ model) — รอโควตาคืนในวันถัดไป หรือเปิดใช้แบบเสียเงินที่ Google AI Studio'
+                : 'วันนี้ AI ของวิชานี้ถูกใช้งานครบโควตาแล้ว ลองใหม่พรุ่งนี้ หรือเลือกสไตล์ที่มีป้าย "พร้อมเรียน"',
+        });
+    }
+    if ([400, 401, 403].includes(Number(error.status))) {
+        return res.status(502).json({
+            code: 'AI_KEY_INVALID',
+            message: isTeacher
+                ? 'API key ของวิชานี้ใช้งานไม่ได้ (อาจถูกยกเลิกหรือหมดโควตา) กรุณาตั้งค่า key ใหม่ในหน้าจัดการวิชา'
+                : 'AI ของวิชานี้ใช้งานไม่ได้ชั่วคราว กรุณาแจ้งครูผู้สอน',
+        });
+    }
+    return res.status(502).json({ message: busyMessage });
+};
 const MAX_RAW_QUIZ_TEXT = 50000;
 const MAX_GENERATE_COUNT = 20;
 
@@ -24,16 +52,24 @@ exports.getModule = async (req, res) => {
         const [rows] = moduleId
             ? await db.query(
                 `SELECT m.id, m.title, m.course_id, m.original_content, m.created_at,
-                        c.title AS course_title, c.teacher_id
+                        c.title AS course_title, c.teacher_id, c.ai_api_key_enc IS NOT NULL AS has_ai_key
                  FROM modules m JOIN courses c ON c.id = m.course_id WHERE m.id = ?`,
                 [moduleId]
             )
             : [[]];
         if (rows.length === 0) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
 
-        const { original_content, teacher_id, ...publicFields } = rows[0];
+        const { original_content, teacher_id, has_ai_key, ...publicFields } = rows[0];
         const canEdit = teacher_id === req.user.id;
-        res.json({ ...publicFields, can_edit: canEdit, ...(canEdit ? { original_content } : {}) });
+        // สไตล์ที่ AI สร้างไว้แล้ว (เปิดได้ทันที ไม่ต้องรอและไม่ใช้โควตา)
+        const [cached] = await db.query("SELECT DISTINCT style_type FROM content_styles WHERE module_id = ?", [moduleId]);
+        res.json({
+            ...publicFields,
+            can_edit: canEdit,
+            cached_styles: cached.map(r => r.style_type),
+            ai_ready: !!has_ai_key || sharedKeyAllowed(), // สร้างเนื้อหาสไตล์ใหม่ได้หรือไม่ (cache เดิมเปิดได้เสมอ)
+            ...(canEdit ? { original_content } : {}),
+        });
     } catch (error) {
         console.error("🔥 Get Module Error:", error);
         res.status(500).json({ message: "ดึงข้อมูลบทเรียนไม่สำเร็จ" });
@@ -96,16 +132,17 @@ exports.getStyledContent = async (req, res) => {
     try {
         const moduleId = toId(req.params.moduleId);
         const style = String(req.query.style || '');
-        if (!ALLOWED_STYLES.includes(style)) {
+        if (!STYLE_IDS.includes(style)) {
             return res.status(400).json({ message: "ไม่รู้จักสไตล์การเรียนนี้" });
         }
 
         const [modules] = moduleId
-            ? await db.query("SELECT id, title, original_content FROM modules WHERE id = ?", [moduleId])
+            ? await db.query("SELECT id, title, course_id, original_content FROM modules WHERE id = ?", [moduleId])
             : [[]];
         if (modules.length === 0) return res.status(404).json({ message: "ไม่พบบทเรียนนี้" });
 
-        const styledContent = await aiService.getStyledContent(moduleId, style, modules[0].original_content);
+        const apiKey = await getCourseApiKey(modules[0].course_id);
+        const styledContent = await aiService.getStyledContent(moduleId, style, modules[0].original_content, apiKey);
 
         // บันทึกการเข้าเรียน (เฉพาะนักเรียน, เมื่อได้เนื้อหาสำเร็จ)
         if (req.user.role === 'STUDENT') {
@@ -123,7 +160,7 @@ exports.getStyledContent = async (req, res) => {
         });
     } catch (error) {
         console.error("🔥 Style Content Error:", error);
-        res.status(502).json({ message: "AI ไม่ว่างหรือสร้างเนื้อหาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือเลือกสไตล์อื่น" });
+        sendAiError(res, error, { isTeacher: req.user.role === 'TEACHER', busyMessage: "AI ไม่ว่างหรือสร้างเนื้อหาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือเลือกสไตล์อื่น" });
     }
 };
 
@@ -194,10 +231,10 @@ exports.aiParseQuizzes = async (req, res) => {
             return res.status(400).json({ message: `ข้อความยาวเกินไป (สูงสุด ${MAX_RAW_QUIZ_TEXT.toLocaleString()} ตัวอักษร)` });
         }
 
-        sendQuizDrafts(res, await aiService.parseQuizWithAI(rawText));
+        sendQuizDrafts(res, await aiService.parseQuizWithAI(rawText, await getCourseApiKey(moduleRow.course_id)));
     } catch (error) {
         console.error("🔥 AI Parse Quiz Error:", error);
-        res.status(502).json({ message: "AI ไม่สามารถวิเคราะห์ข้อสอบได้ กรุณาลองใหม่" });
+        sendAiError(res, error, { isTeacher: true, busyMessage: "AI ไม่สามารถวิเคราะห์ข้อสอบได้ กรุณาลองใหม่" });
     }
 };
 
@@ -214,9 +251,9 @@ exports.aiGenerateQuizzes = async (req, res) => {
             return res.status(400).json({ message: `จำนวนข้อต้องอยู่ระหว่าง 1-${MAX_GENERATE_COUNT}` });
         }
 
-        sendQuizDrafts(res, await aiService.generateQuizFromContent(moduleRow.original_content, count));
+        sendQuizDrafts(res, await aiService.generateQuizFromContent(moduleRow.original_content, count, await getCourseApiKey(moduleRow.course_id)));
     } catch (error) {
         console.error("🔥 AI Generate Quiz Error:", error);
-        res.status(502).json({ message: "AI ไม่สามารถออกข้อสอบได้ กรุณาลองใหม่" });
+        sendAiError(res, error, { isTeacher: true, busyMessage: "AI ไม่สามารถออกข้อสอบได้ กรุณาลองใหม่" });
     }
 };

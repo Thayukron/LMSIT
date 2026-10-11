@@ -22,7 +22,8 @@
 - สมัครสมาชิก (นักเรียน) / เข้าสู่ระบบ / ออกจากระบบ ด้วย JWT ใน httpOnly cookie
 - แยกสิทธิ์ครู/นักเรียน ทั้งฝั่ง API และหน้าเว็บ (นักเรียนจะไม่ได้รับเฉลยข้อสอบ)
 - **ครู:** สร้าง/แก้ไข/ลบวิชาของตัวเอง, เพิ่มบทเรียนจากไฟล์ (PDF, Word .docx, .txt ไม่เกิน 10MB) / URL / พิมพ์เอง, แก้ไขเนื้อหาบทเรียน (ล้าง cache ของ AI อัตโนมัติ)
-- **นักเรียน:** ดูรายวิชา → รายการบทเรียน → เลือกสไตล์เนื้อหา 4 แบบ (เพื่อนสอนเพื่อน, สรุป, ตัวอย่าง, เกม)
+- **นักเรียน:** ดูรายวิชา → รายการบทเรียน → เลือกเรียนได้ **10 สไตล์ใน 3 หมวด** — อ่าน (เพื่อนติวเพื่อน, สรุปเน้นๆ, เคสจริง, ภารกิจผจญภัย, อธิบายแบบเด็ก 10 ขวบ), เรื่องราว (นิทานความรู้, การ์ตูนแชต), ฝึกฝน (แฟลชการ์ด, ผังความคิด, เกมจับคู่/เรียงลำดับ/เติมคำ)
+- **API key รายวิชา:** ครูใส่ Gemini API key ของตัวเองในหน้าจัดการวิชา → "ตั้งค่า AI" (ตรวจกับ Google ก่อนบันทึก, เก็บแบบเข้ารหัส, ไม่แสดงกลับ) — key ส่วนกลางปิดไว้เป็นค่าเริ่มต้น (`ALLOW_SHARED_AI_KEY=false`)
 - **AI:** เก็บเนื้อหาแต่ละสไตล์ไว้สูงสุด 3 เวอร์ชันแล้วสุ่มแสดง (สร้างเวอร์ชันเพิ่มเบื้องหลัง), นักเรียนหลายคนเปิดพร้อมกันเรียก AI ครั้งเดียว, ตรวจผลจาก AI ก่อนเก็บ (cache ที่เสียจะถูกสร้างใหม่อัตโนมัติ), ถ้า model ไม่ว่างจะสลับไป model สำรองเอง
 - **สอบ:** ทำแบบทดสอบท้ายบทเรียน ตรวจคะแนนฝั่ง server (เกณฑ์ผ่าน 60%) ดูเฉลยหลังส่ง สอบซ้ำได้ และดูประวัติการสอบย้อนหลัง — ผลสอบเก็บสำเนาข้อสอบ ณ ตอนสอบ ครูแก้ข้อสอบภายหลังได้โดยผลเดิมไม่เปลี่ยน (ครูลองทำได้ในโหมดดูตัวอย่าง ไม่บันทึกคะแนน)
 - **ความก้าวหน้า (นักเรียน):** แถบความคืบหน้าแต่ละวิชา (เข้าเรียนแล้ว / สอบผ่าน) และสถานะ + คะแนนสูงสุดของแต่ละบท
@@ -77,7 +78,7 @@ mysql -u root -p < database/seed.sql     # (ไม่บังคับ) ข้�
 ```bash
 cd backend
 npm install
-cp .env.example .env     # แล้วแก้ค่า JWT_SECRET, DB_* และ GEMINI_API_KEY (ขอ key ได้ที่ https://aistudio.google.com/apikey)
+cp .env.example .env     # แล้วแก้ค่า JWT_SECRET, AI_KEY_SECRET และ DB_*
 npm run dev              # รันที่ http://localhost:5000
 ```
 
@@ -114,10 +115,11 @@ Frontend ส่งต่อทุก request `/api/*` ไปที่ Backend (`
 | POST | `/api/courses` | ครู | สร้างวิชา (`title`, `description`) |
 | GET | `/api/courses/:courseId` | login | รายละเอียดวิชา + รายการบทเรียน |
 | PUT / DELETE | `/api/courses/:courseId` | ครูเจ้าของ | แก้ไข / ลบวิชา (ลบบทเรียนและข้อสอบตามไปด้วย) |
+| PUT / DELETE | `/api/courses/:courseId/ai-key` | ครูเจ้าของ | ตั้งค่า (`apiKey`) / ลบ Gemini API key ของวิชา |
 | POST | `/api/courses/:courseId/modules` | ครูเจ้าของ | เพิ่มบทเรียน (form-data: `title` + `file` หรือ `url` หรือ `text`) |
 | GET | `/api/modules/:moduleId` | login | ข้อมูลบทเรียน (ครูเจ้าของได้เนื้อหาต้นฉบับด้วย) |
 | PUT / DELETE | `/api/modules/:moduleId` | ครูเจ้าของ | แก้ไข (`title`, `original_content`) / ลบบทเรียน |
-| GET | `/api/modules/:moduleId/content?style=summary` | login | เนื้อหาที่ AI ปรับสไตล์ (`peer_to_peer`, `summary`, `example_based`, `gamified`) |
+| GET | `/api/modules/:moduleId/content?style=summary` | login | เนื้อหาตามสไตล์ (`peer_to_peer`, `summary`, `example_based`, `gamified`, `eli10`, `story`, `chat`, `flashcards`, `mindmap`, `practice`) |
 | GET | `/api/modules/:moduleId/quizzes` | login | ข้อสอบ (เฉลยส่งให้เฉพาะครูเจ้าของ) |
 | POST | `/api/modules/:moduleId/quizzes` | ครูเจ้าของ | บันทึกข้อสอบ (`questions[]`) — ถ้ามีข้อผิดจะไม่บันทึกเลยสักข้อ |
 | POST | `/api/modules/:moduleId/quizzes/ai-generate` | ครูเจ้าของ | ให้ AI ออกข้อสอบจากเนื้อหาบทเรียน (`count` 1-20) → คืนร่าง ไม่บันทึก |
