@@ -127,7 +127,11 @@ exports.getModuleById = async (req, res) => {
 exports.getModuleQuizzes = async (req, res) => {
     try {
         const { moduleId } = req.params;
-        const [quizzes] = await db.query("SELECT * FROM quizzes WHERE module_id = ?", [moduleId]);
+        // ส่งเฉลยให้เฉพาะครู นักเรียนจะไม่เห็น correct_answer
+        const columns = req.user.role === 'TEACHER'
+            ? "*"
+            : "id, module_id, question, option_a, option_b, option_c, option_d";
+        const [quizzes] = await db.query(`SELECT ${columns} FROM quizzes WHERE module_id = ?`, [moduleId]);
         res.json(quizzes);
     } catch (error) {
         res.status(500).json({ message: "ดึงข้อสอบไม่สำเร็จ" });

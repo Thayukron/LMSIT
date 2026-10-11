@@ -9,6 +9,16 @@ CREATE DATABASE IF NOT EXISTS lmsit
 
 USE lmsit;
 
+-- ผู้ใช้งาน (สมัครเองได้เฉพาะ STUDENT, บัญชี TEACHER สร้างโดยผู้ดูแลระบบ)
+CREATE TABLE IF NOT EXISTS users (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    name          VARCHAR(100) NOT NULL,
+    email         VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role          ENUM('TEACHER', 'STUDENT') NOT NULL DEFAULT 'STUDENT',
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
 -- วิชาหลัก
 CREATE TABLE IF NOT EXISTS courses (
     id          INT AUTO_INCREMENT PRIMARY KEY,
@@ -55,4 +65,4 @@ CREATE TABLE IF NOT EXISTS quizzes (
         REFERENCES modules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- ตาราง users และ user_progress จะเพิ่มในระยะที่ 1 (ระบบผู้ใช้) และระยะที่ 2 (ระบบสอบ)
+-- ตาราง user_progress จะเพิ่มในระยะที่ 2 (ระบบสอบ)

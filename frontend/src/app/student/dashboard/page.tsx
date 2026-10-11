@@ -1,9 +1,10 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import type { ModuleSummary } from '@/lib/types';
-import { User, BookOpen } from 'lucide-react';
+import Navbar from '@/components/Navbar';
+import { BookOpen } from 'lucide-react';
 
 export default function StudentDashboard() {
     const [modules, setModules] = useState<ModuleSummary[]>([]);
@@ -11,11 +12,7 @@ export default function StudentDashboard() {
 
     useEffect(() => {
         // ดึงข้อมูลจาก API หลังบ้าน
-        fetch(`${API_URL}/api/courses`)
-            .then(res => {
-                if (!res.ok) throw new Error("Backend Error 500");
-                return res.json();
-            })
+        apiFetch<ModuleSummary[]>('/api/courses')
             .then(data => setModules(Array.isArray(data) ? data : []))
             .catch(err => {
                 console.error("Fetch Error:", err);
@@ -26,19 +23,7 @@ export default function StudentDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
-            
-            {/* --- NAVBAR สีม่วง Indigo --- */}
-            <nav className="bg-indigo-600 p-4 text-white shadow-lg sticky top-0 z-50">
-                <div className="container mx-auto flex justify-between items-center px-4">
-                    <h1 className="text-xl font-bold flex items-center gap-2">🎓 AI Smart Learning</h1>
-                    <div className="flex items-center gap-4">
-                        <span className="bg-indigo-700 px-3 py-1 rounded text-sm border border-indigo-500 flex items-center gap-2">
-                            <User size={14} /> นักเรียน
-                        </span>
-                        <button className="hover:underline text-sm font-medium">ออกจากระบบ</button>
-                    </div>
-                </div>
-            </nav>
+            <Navbar />
 
             <div className="container mx-auto mt-10 p-4 max-w-6xl">
                 {/* หัวข้อหน้า พร้อมขีดข้างสีม่วง */}

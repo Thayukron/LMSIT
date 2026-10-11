@@ -1,6 +1,13 @@
 -- ข้อมูลตัวอย่างสำหรับทดลองระบบ (รันหลัง schema.sql)
 USE lmsit;
 
+-- บัญชีทดลอง (เปลี่ยนรหัสผ่านก่อนใช้งานจริง!)
+--   ครู:      teacher@lmsit.local / teacher1234
+--   นักเรียน: student@lmsit.local / student1234
+INSERT INTO users (name, email, password_hash, role) VALUES
+    ('ครูตัวอย่าง', 'teacher@lmsit.local', '$2b$10$VKdr/tfVI8YFHL.RFSvteOyqzz4Or4hhThYQ3jt2CBpw6RUHcOwUe', 'TEACHER'),
+    ('นักเรียนตัวอย่าง', 'student@lmsit.local', '$2b$10$Fn0IXk2DyaHvCnrwvzbsZeTtMTeHNbPNCzGqFrNV685FFVI0gGZIa', 'STUDENT');
+
 INSERT INTO courses (id, title, description) VALUES
     (1, 'พื้นฐานเทคโนโลยีสารสนเทศ', 'วิชาตัวอย่างสำหรับทดลองระบบ');
 

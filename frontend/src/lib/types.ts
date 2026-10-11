@@ -1,3 +1,13 @@
+export type Role = 'TEACHER' | 'STUDENT';
+
+// ผู้ใช้ที่ login อยู่ (GET /api/auth/me)
+export interface User {
+    id: number;
+    name: string;
+    email: string;
+    role: Role;
+}
+
 // โมดูลที่แสดงบน Dashboard (GET /api/courses)
 export interface ModuleSummary {
     id: number;

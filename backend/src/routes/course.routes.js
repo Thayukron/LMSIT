@@ -1,28 +1,32 @@
-// D:\LMS\backend\src\routes\course.routes.js
 const express = require('express');
 const router = express.Router();
-const upload = require('../middleware/upload'); // มั่นใจว่ามี middleware ตัวนี้สำหรับ multer
+const upload = require('../middleware/upload');
 const courseController = require('../controllers/course.controller');
+const { requireAuth, requireRole } = require('../middleware/auth');
+
+// ทุก route ในไฟล์นี้ต้อง login ก่อน
+router.use(requireAuth);
 
 /**
  * -------------------------------------------------------
- * ROUTES สำหรับฝั่ง ADMIN / CONTENT CREATOR
+ * ROUTES สำหรับครู (TEACHER เท่านั้น)
  * -------------------------------------------------------
  */
+const teacherOnly = requireRole('TEACHER');
 
 // 1. นำเข้าเนื้อหาบทเรียน (รองรับไฟล์ PDF/DOCX หรือ URL)
-router.post('/upload-module', upload.single('file'), courseController.uploadModuleContent);
+router.post('/upload-module', teacherOnly, upload.single('file'), courseController.uploadModuleContent);
 
 // 2. นำเข้าข้อสอบอัจฉริยะ (AI วิเคราะห์จากข้อความ Raw Text)
-router.post('/import-smart-quiz', courseController.importSmartQuiz);
+router.post('/import-smart-quiz', teacherOnly, courseController.importSmartQuiz);
 
 // 3. สร้างข้อสอบแบบระบุข้อมูลเอง (Manual)
-router.post('/create-quiz', courseController.createQuiz);
+router.post('/create-quiz', teacherOnly, courseController.createQuiz);
 
 
 /**
  * -------------------------------------------------------
- * ROUTES สำหรับฝั่งนักเรียน (STUDENT UI)
+ * ROUTES สำหรับผู้ใช้ทุกคนที่ login แล้ว
  * -------------------------------------------------------
  */
 
@@ -36,7 +40,7 @@ router.get('/modules/:moduleId/content', courseController.getModuleContentByStyl
 // 6. ดึงข้อมูลโมดูลแบบเจาะจง (ถ้าต้องใช้ข้อมูลดั้งเดิม)
 router.get('/modules/:moduleId', courseController.getModuleById);
 
-// 7. ดึงชุดข้อสอบของโมดูลนั้นๆ (สำหรับหน้าทำ Quiz)
+// 7. ดึงชุดข้อสอบของโมดูลนั้นๆ (นักเรียนจะไม่ได้รับเฉลย)
 router.get('/modules/:moduleId/quizzes', courseController.getModuleQuizzes);
 
 module.exports = router;

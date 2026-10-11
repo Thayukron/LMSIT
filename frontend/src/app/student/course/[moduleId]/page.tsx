@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ChevronLeft, Sparkles } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import type { StyledContent } from '@/lib/types';
 
 export default function CourseContentPage() {
@@ -24,8 +24,9 @@ export default function CourseContentPage() {
         setLoading(true); 
         setView('study');
         try {
-            const res = await fetch(`${API_URL}/api/courses/modules/${moduleId}/content?style=${style}`);
-            const data = await res.json();
+            const data = await apiFetch<{ content: string | StyledContent }>(
+                `/api/courses/modules/${moduleId}/content?style=${encodeURIComponent(style)}`
+            );
             const parsed = typeof data.content === 'string' ? JSON.parse(data.content) : data.content;
             setContent(parsed);
         } catch (e) { 

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// ยังไม่มีระบบ Login จึงพาไปหน้า Dashboard นักเรียนก่อน (จะเปลี่ยนเป็นหน้า Login ในระยะที่ 1)
+// ปกติ proxy.ts จะพาไปหน้า Login หรือหน้าหลักของแต่ละ role ก่อนถึงหน้านี้
 export default function Home() {
-  redirect("/student/dashboard");
+  redirect("/login");
 }
