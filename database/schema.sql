@@ -42,13 +42,15 @@ CREATE TABLE IF NOT EXISTS modules (
 ) ENGINE=InnoDB;
 
 -- Cache เนื้อหาที่ AI ปรับสไตล์แล้ว (content_body เป็น JSON string)
+-- เก็บได้หลายเวอร์ชันต่อสไตล์ (สูงสุด 3) แล้วสุ่มแสดง
 CREATE TABLE IF NOT EXISTS content_styles (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
-    module_id    INT NOT NULL,
-    style_type   VARCHAR(50) NOT NULL,
-    content_body LONGTEXT NOT NULL,
-    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_module_style (module_id, style_type),
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    module_id      INT NOT NULL,
+    style_type     VARCHAR(50) NOT NULL,
+    version_number INT NOT NULL DEFAULT 1,
+    content_body   LONGTEXT NOT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_module_style_version (module_id, style_type, version_number),
     CONSTRAINT fk_styles_module FOREIGN KEY (module_id)
         REFERENCES modules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

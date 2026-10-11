@@ -123,7 +123,7 @@ exports.getStyledContent = async (req, res) => {
         });
     } catch (error) {
         console.error("🔥 Style Content Error:", error);
-        res.status(500).json({ message: "ไม่สามารถสร้างเนื้อหาในสไตล์นี้ได้" });
+        res.status(502).json({ message: "AI ไม่ว่างหรือสร้างเนื้อหาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือเลือกสไตล์อื่น" });
     }
 };
 

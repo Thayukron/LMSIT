@@ -110,6 +110,7 @@ export default function CourseContentPage() {
                     <div className="text-xl font-black italic text-indigo-600 uppercase tracking-widest animate-pulse">
                         Generating...
                     </div>
+                    <p className="text-sm text-gray-400 px-6 text-center">AI กำลังเรียบเรียงบทเรียนให้คุณ ครั้งแรกอาจใช้เวลาประมาณ 10-60 วินาที</p>
                 </div>
             ) : (
                 <main className="max-w-4xl mx-auto px-6 py-16">
