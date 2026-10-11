@@ -2,14 +2,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Pencil, Eye, ListChecks } from 'lucide-react';
+import { ArrowLeft, BarChart3, Eye, ListChecks, Pencil, Trash2, Settings2, Plus, Layers } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { CourseDetail } from '@/lib/types';
-import PageShell from '@/components/PageShell';
-import Spinner from '@/components/Spinner';
+import { Alert, Badge, Button, Card, EmptyState, PageLoader } from '@/components/ui';
+import Modal from '@/components/Modal';
 import CourseForm from '@/components/teacher/CourseForm';
 import AddModuleForm from '@/components/teacher/AddModuleForm';
-import { cardClass, primaryButton, secondaryButton, dangerButton, successBox } from '@/lib/ui';
+import { courseCover } from '@/lib/visual';
 
 export default function TeacherCoursePage() {
     const { courseId } = useParams<{ courseId: string }>();
@@ -18,21 +18,21 @@ export default function TeacherCoursePage() {
     const [error, setError] = useState('');
     const [editing, setEditing] = useState(false);
     const [notice, setNotice] = useState('');
+    const closeEdit = useCallback(() => setEditing(false), []);
 
     const loadCourse = useCallback(() => {
         apiFetch<CourseDetail>(`/api/courses/${courseId}`)
-            .then(data => {
-                if (!data.can_edit) setError('คุณไม่ใช่ผู้สอนของวิชานี้');
-                else setCourse(data);
-            })
+            .then(data => (data.can_edit ? setCourse(data) : setError('คุณไม่ใช่ผู้สอนของวิชานี้')))
             .catch(err => setError(err.message));
     }, [courseId]);
 
     useEffect(loadCourse, [loadCourse]);
 
-    const back = { href: '/teacher', label: 'วิชาที่ฉันสอน' };
-    if (error) return <PageShell title="เกิดข้อผิดพลาด" back={back}><p className="text-red-600">{error}</p></PageShell>;
-    if (!course) return <Spinner />;
+    if (error) return <Alert>{error}</Alert>;
+    if (!course) return <PageLoader />;
+
+    const cover = courseCover(course.id);
+    const quizTotal = course.modules.reduce((t, m) => t + m.quiz_count, 0);
 
     const updateCourse = async (values: { title: string; description: string }) => {
         await apiFetch(`/api/courses/${course.id}`, { method: 'PUT', body: JSON.stringify(values) });
@@ -41,8 +41,7 @@ export default function TeacherCoursePage() {
     };
 
     const deleteCourse = async () => {
-        const ok = window.confirm(`ลบวิชา "${course.title}"?\nบทเรียนและข้อสอบทั้งหมดในวิชานี้จะถูกลบด้วย และกู้คืนไม่ได้`);
-        if (!ok) return;
+        if (!window.confirm(`ลบวิชา "${course.title}"?\nบทเรียน ข้อสอบ และผลสอบทั้งหมดในวิชานี้จะถูกลบ และกู้คืนไม่ได้`)) return;
         try {
             await apiFetch(`/api/courses/${course.id}`, { method: 'DELETE' });
             router.push('/teacher');
@@ -52,58 +51,73 @@ export default function TeacherCoursePage() {
     };
 
     return (
-        <PageShell
-            title={course.title}
-            back={back}
-            actions={!editing && (<>
-                <Link href={`/teacher/courses/${course.id}/report`} className={primaryButton}>รายงานผลการเรียน</Link>
-                <button onClick={() => setEditing(true)} className={secondaryButton}>แก้ไขข้อมูลวิชา</button>
-                <button onClick={deleteCourse} className={dangerButton}>ลบวิชา</button>
-            </>)}
-        >
-            {editing ? (
-                <div className={`${cardClass} mb-8`}>
-                    <CourseForm initial={course} submitLabel="บันทึก" onSubmit={updateCourse} onCancel={() => setEditing(false)} />
+        <div className="space-y-8">
+            <section className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br ${cover.gradient} text-white p-6 sm:p-10 animate-fade-up`}>
+                <div className="absolute inset-0 bg-dots opacity-25" aria-hidden="true" />
+                <span className="absolute -right-4 -bottom-8 text-[9rem] opacity-25 select-none" aria-hidden="true">{cover.emoji}</span>
+                <div className="relative">
+                    <Link href="/teacher" className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white"><ArrowLeft size={16} /> วิชาที่สอน</Link>
+                    <h1 className="mt-4 text-3xl sm:text-4xl font-bold break-words">{course.title}</h1>
+                    {course.description && <p className="mt-2 text-white/85 max-w-2xl whitespace-pre-line">{course.description}</p>}
+                    <div className="mt-5 flex flex-wrap gap-2 text-sm">
+                        <span className="rounded-full bg-white/20 px-3 py-1 backdrop-blur">📚 {course.modules.length} บทเรียน</span>
+                        <span className="rounded-full bg-white/20 px-3 py-1 backdrop-blur">📝 {quizTotal} ข้อสอบ</span>
+                    </div>
+                    <div className="mt-6 flex flex-wrap gap-2">
+                        <Button href={`/teacher/courses/${course.id}/report`} variant="white"><BarChart3 size={18} /> รายงานผลการเรียน</Button>
+                        <Button href={`/student/courses/${course.id}`} variant="ghost" className="text-white hover:bg-white/15 hover:text-white"><Eye size={18} /> ดูแบบนักเรียน</Button>
+                        <Button onClick={() => setEditing(true)} variant="ghost" className="text-white hover:bg-white/15 hover:text-white"><Settings2 size={18} /> แก้ไขข้อมูลวิชา</Button>
+                        <Button onClick={deleteCourse} variant="ghost" className="text-white/80 hover:bg-red-500/80 hover:text-white"><Trash2 size={18} /> ลบวิชา</Button>
+                    </div>
                 </div>
-            ) : (
-                course.description && <p className="text-gray-500 mb-8 whitespace-pre-line">{course.description}</p>
-            )}
+            </section>
 
-            <div className="grid lg:grid-cols-5 gap-8">
+            <div className="grid lg:grid-cols-5 gap-8 items-start">
                 <section className="lg:col-span-3">
-                    <h3 className="font-bold text-xl mb-4">บทเรียน ({course.modules.length})</h3>
+                    <h2 className="flex items-center gap-2 text-2xl font-bold text-ink mb-4"><Layers size={22} className="text-brand-600" /> บทเรียน</h2>
+                    {notice && <Alert tone="success" className="mb-4">{notice}</Alert>}
                     {course.modules.length === 0 ? (
-                        <p className="text-gray-400 bg-white rounded-2xl p-8 text-center border-2 border-dashed border-gray-200">
-                            ยังไม่มีบทเรียน เพิ่มบทเรียนแรกจากฟอร์มด้านข้าง
-                        </p>
+                        <EmptyState icon={<Plus size={28} />} title="ยังไม่มีบทเรียน" description="เพิ่มบทเรียนแรกจากไฟล์ ลิงก์ หรือพิมพ์เนื้อหาเองได้ที่แผงด้านข้าง" />
                     ) : (
                         <ol className="space-y-3">
                             {course.modules.map((m, i) => (
-                                <li key={m.id} className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-4">
-                                    <span className="text-xl font-black text-indigo-200 shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                                    <span className="font-bold text-gray-900 flex-1 min-w-0 break-words">{m.title}</span>
-                                    <Link href={`/teacher/modules/${m.id}/quizzes`} title="จัดการข้อสอบ" aria-label={`ข้อสอบของ ${m.title}`}
-                                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold shrink-0 ${m.quiz_count > 0 ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'} hover:ring-2 hover:ring-indigo-200`}>
-                                        <ListChecks size={14} /> {m.quiz_count > 0 ? `${m.quiz_count} ข้อ` : 'ยังไม่มีข้อสอบ'}
-                                    </Link>
-                                    <Link href={`/student/modules/${m.id}`} title="ดูแบบนักเรียน" aria-label={`ดู ${m.title} แบบนักเรียน`}
-                                        className="p-2 text-gray-400 hover:text-indigo-600 shrink-0"><Eye size={18} /></Link>
-                                    <Link href={`/teacher/modules/${m.id}`} title="แก้ไข" aria-label={`แก้ไข ${m.title}`}
-                                        className="p-2 text-gray-400 hover:text-indigo-600 shrink-0"><Pencil size={18} /></Link>
+                                <li key={m.id}>
+                                    <Card className="p-4 sm:p-5 flex flex-wrap items-center gap-4 hover:ring-brand-200 transition">
+                                        <span className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-700 font-bold font-display flex items-center justify-center shrink-0">{i + 1}</span>
+                                        <div className="flex-1 min-w-48">
+                                            <Link href={`/teacher/modules/${m.id}`} className="font-bold text-ink hover:text-brand-700 break-words">{m.title}</Link>
+                                            <div className="mt-1">
+                                                <Link href={`/teacher/modules/${m.id}/quizzes`}>
+                                                    {m.quiz_count > 0
+                                                        ? <Badge tone="green"><ListChecks size={12} /> ข้อสอบ {m.quiz_count} ข้อ</Badge>
+                                                        : <Badge tone="amber"><ListChecks size={12} /> ยังไม่มีข้อสอบ</Badge>}
+                                                </Link>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <Button href={`/teacher/modules/${m.id}/quizzes`} variant="ghost" size="sm" aria-label={`ข้อสอบของ ${m.title}`}><ListChecks size={16} /> <span className="hidden sm:inline">ข้อสอบ</span></Button>
+                                            <Button href={`/teacher/modules/${m.id}`} variant="ghost" size="sm" aria-label={`แก้ไข ${m.title}`}><Pencil size={16} /> <span className="hidden sm:inline">แก้ไข</span></Button>
+                                            <Button href={`/student/modules/${m.id}`} variant="ghost" size="sm" aria-label={`ดู ${m.title} แบบนักเรียน`}><Eye size={16} /></Button>
+                                        </div>
+                                    </Card>
                                 </li>
                             ))}
                         </ol>
                     )}
                 </section>
 
-                <section className="lg:col-span-2">
-                    <div className={cardClass}>
-                        <h3 className="font-bold text-xl mb-4">เพิ่มบทเรียน</h3>
-                        {notice && <p role="status" className={`${successBox} mb-4`}>{notice}</p>}
-                        <AddModuleForm courseId={course.id} onCreated={() => { setNotice('เพิ่มบทเรียนสำเร็จ!'); loadCourse(); }} />
-                    </div>
-                </section>
+                <aside className="lg:col-span-2 lg:sticky lg:top-24">
+                    <Card className="p-6 sm:p-7">
+                        <h2 className="text-xl font-bold text-ink">เพิ่มบทเรียนใหม่</h2>
+                        <p className="text-sm text-slate-500 mt-1 mb-5">อัปโหลดครั้งเดียว AI จะสร้างบทเรียนให้นักเรียนครบ 4 สไตล์</p>
+                        <AddModuleForm courseId={course.id} onCreated={() => { setNotice('เพิ่มบทเรียนสำเร็จ! อย่าลืมเพิ่มข้อสอบให้บทเรียนนี้'); loadCourse(); }} />
+                    </Card>
+                </aside>
             </div>
-        </PageShell>
+
+            <Modal open={editing} title="แก้ไขข้อมูลวิชา" onClose={closeEdit}>
+                <CourseForm initial={course} submitLabel="บันทึก" onSubmit={updateCourse} onCancel={closeEdit} />
+            </Modal>
+        </div>
     );
 }

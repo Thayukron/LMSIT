@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { ApiError } from '@/lib/api';
-import { inputClass, labelClass, primaryButton, secondaryButton, errorBox } from '@/lib/ui';
+import { Alert, Button, Field, inputClass } from '@/components/ui';
 
 interface CourseFormProps {
     initial?: { title: string; description: string | null };
@@ -31,19 +31,19 @@ export default function CourseForm({ initial, submitLabel, onSubmit, onCancel }:
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-                <label htmlFor="course-title" className={labelClass}>ชื่อวิชา</label>
-                <input id="course-title" className={inputClass} value={title} onChange={e => setTitle(e.target.value)} required maxLength={255} />
-            </div>
-            <div>
-                <label htmlFor="course-desc" className={labelClass}>คำอธิบายวิชา (ไม่บังคับ)</label>
-                <textarea id="course-desc" className={inputClass} rows={3} value={description} onChange={e => setDescription(e.target.value)} maxLength={5000} />
-            </div>
-            {error && <p role="alert" className={errorBox}>{error}</p>}
-            <div className="flex gap-2">
-                <button type="submit" disabled={saving} className={primaryButton}>{saving ? 'กำลังบันทึก...' : submitLabel}</button>
-                {onCancel && <button type="button" onClick={onCancel} className={secondaryButton}>ยกเลิก</button>}
+        <form onSubmit={handleSubmit} className="space-y-5">
+            <Field label="ชื่อวิชา" htmlFor="course-title">
+                <input id="course-title" className={inputClass} value={title} onChange={e => setTitle(e.target.value)} required maxLength={255}
+                    placeholder="เช่น พื้นฐานการเขียนโปรแกรม" autoFocus />
+            </Field>
+            <Field label="คำอธิบายวิชา" htmlFor="course-desc" hint="ไม่บังคับ — นักเรียนจะเห็นข้อความนี้ในหน้าวิชา">
+                <textarea id="course-desc" className={inputClass} rows={4} value={description} onChange={e => setDescription(e.target.value)} maxLength={5000}
+                    placeholder="วิชานี้จะได้เรียนรู้อะไรบ้าง?" />
+            </Field>
+            {error && <Alert>{error}</Alert>}
+            <div className="flex justify-end gap-2 pt-2">
+                {onCancel && <Button variant="ghost" onClick={onCancel}>ยกเลิก</Button>}
+                <Button type="submit" disabled={saving}>{saving ? 'กำลังบันทึก...' : submitLabel}</Button>
             </div>
         </form>
     );

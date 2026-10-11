@@ -1,21 +1,32 @@
 import type { Metadata } from "next";
-import { Noto_Sans_Thai } from "next/font/google";
+import { Anuphan, Prompt } from "next/font/google";
+import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
-const notoSansThai = Noto_Sans_Thai({
-  variable: "--font-noto-sans-thai",
+// Anuphan: เนื้อหา/UI ทั่วไป | Prompt: หัวข้อใหญ่
+const anuphan = Anuphan({
+  variable: "--font-anuphan",
   subsets: ["thai", "latin"],
 });
 
+const prompt = Prompt({
+  variable: "--font-prompt",
+  subsets: ["thai", "latin"],
+  weight: ["500", "600", "700", "800"],
+});
+
 export const metadata: Metadata = {
-  title: "AI Smart Learning",
-  description: "ระบบจัดการการเรียนรู้ที่ใช้ AI ปรับสไตล์เนื้อหาตามผู้เรียน",
+  title: {
+    default: `${BRAND.name} — เรียนรู้ในแบบที่เป็นคุณ`,
+    template: `%s · ${BRAND.name}`,
+  },
+  description: BRAND.description,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="th" className={`${notoSansThai.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="th" className={`${anuphan.variable} ${prompt.variable} h-full`}>
+      <body className="min-h-full flex flex-col font-sans">{children}</body>
     </html>
   );
 }

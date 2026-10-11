@@ -13,6 +13,7 @@ const validateCourseInput = (title, description) => {
 /**
  * 1. รายการวิชา (?mine=1 สำหรับครู = เฉพาะวิชาที่ตัวเองสอน)
  *    มีความก้าวหน้าของผู้ใช้ที่ login อยู่ด้วย: visited_count (บทที่เข้าเรียน), passed_count (บทที่สอบผ่าน)
+ *    และสถิติของวิชา: quiz_count (ข้อสอบทั้งหมด), student_count (นักเรียนที่เคยเข้าเรียน/สอบ)
  */
 exports.listCourses = async (req, res) => {
     try {
@@ -23,7 +24,14 @@ exports.listCourses = async (req, res) => {
                     (SELECT COUNT(*) FROM module_visits v JOIN modules vm ON vm.id = v.module_id
                      WHERE vm.course_id = c.id AND v.user_id = ?) AS visited_count,
                     (SELECT COUNT(DISTINCT a.module_id) FROM quiz_attempts a JOIN modules am ON am.id = a.module_id
-                     WHERE am.course_id = c.id AND a.user_id = ? AND a.passed = 1) AS passed_count
+                     WHERE am.course_id = c.id AND a.user_id = ? AND a.passed = 1) AS passed_count,
+                    (SELECT COUNT(*) FROM quizzes q JOIN modules qm ON qm.id = q.module_id
+                     WHERE qm.course_id = c.id) AS quiz_count,
+                    (SELECT COUNT(DISTINCT x.user_id)
+                     FROM (SELECT user_id, module_id FROM module_visits
+                           UNION ALL SELECT user_id, module_id FROM quiz_attempts) x
+                     JOIN modules xm ON xm.id = x.module_id
+                     WHERE xm.course_id = c.id) AS student_count
              FROM courses c
              LEFT JOIN users u ON u.id = c.teacher_id
              LEFT JOIN modules m ON m.course_id = c.id

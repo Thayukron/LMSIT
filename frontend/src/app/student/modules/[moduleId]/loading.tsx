@@ -1,1 +1,5 @@
-export { default } from '@/components/Spinner';
+import { PageLoader } from '@/components/ui';
+
+export default function Loading() {
+    return <PageLoader />;
+}

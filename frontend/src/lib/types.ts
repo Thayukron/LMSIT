@@ -19,6 +19,8 @@ export interface CourseSummary {
     created_at: string;
     visited_count: number; // บทที่ผู้ใช้คนนี้เข้าเรียนแล้ว
     passed_count: number;  // บทที่ผู้ใช้คนนี้สอบผ่านแล้ว
+    quiz_count: number;    // ข้อสอบทั้งหมดในวิชา
+    student_count: number; // นักเรียนที่เคยเข้าเรียน/สอบ
 }
 
 // บทเรียนในรายการของวิชา
@@ -30,7 +32,7 @@ export interface ModuleSummary {
 }
 
 // รายละเอียดวิชา (GET /api/courses/:courseId)
-export interface CourseDetail extends Omit<CourseSummary, 'module_count' | 'visited_count' | 'passed_count'> {
+export interface CourseDetail extends Omit<CourseSummary, 'module_count' | 'visited_count' | 'passed_count' | 'quiz_count' | 'student_count'> {
     modules: ModuleSummary[];
     can_edit: boolean;
 }
@@ -46,18 +48,36 @@ export interface ModuleDetail {
     original_content?: string;
 }
 
-// เนื้อหาที่ AI ปรับสไตล์แล้ว (GET /api/modules/:moduleId/content)
-export interface StyledSection {
+// เนื้อหาที่ AI ปรับสไตล์แล้ว (GET /api/modules/:moduleId/content) — ต้องตรงกับ schema ใน ai.service.js
+export type LessonBlockType = 'concept' | 'example' | 'analogy' | 'steps' | 'tip' | 'warning' | 'story' | 'mission' | 'fact';
+
+export interface LessonBlock {
+    type: LessonBlockType;
+    emoji: string;
     title: string;
     content: string;
-    image_keyword?: string;
+    highlight?: string;
+}
+
+export interface QuickCheck {
+    after_section: number;
+    question: string;
+    choices: string[];
+    answer_index: number;
+    explanation: string;
 }
 
 export interface StyledContent {
     headline: string;
+    emoji: string;
     intro: string;
-    sections: StyledSection[];
+    estimated_minutes: number;
+    objectives: string[];
+    sections: LessonBlock[];
+    quick_checks: QuickCheck[];
+    key_terms: { term: string; meaning: string }[];
     key_points: string[];
+    closing: string;
 }
 
 export type AnswerKey = 'a' | 'b' | 'c' | 'd';

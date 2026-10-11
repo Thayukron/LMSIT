@@ -1,10 +1,10 @@
 "use client";
 import React, { useState } from 'react';
-import { Pencil, Trash2, Check } from 'lucide-react';
+import { Pencil, Trash2, Check, TrendingDown } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { Quiz, QuizDraft, QuizStat } from '@/lib/types';
 import { ANSWER_KEYS, OPTION_FIELD, toDraft, draftError } from '@/lib/quiz';
-import { cardClass, primaryButton, secondaryButton, errorBox } from '@/lib/ui';
+import { Alert, Badge, Button, Card, cx } from '@/components/ui';
 import QuestionEditor from '@/components/teacher/QuestionEditor';
 
 interface QuizCardProps {
@@ -14,18 +14,7 @@ interface QuizCardProps {
     stats?: QuizStat; // สถิติการตอบของนักเรียน (ถ้ามีคนสอบแล้ว)
 }
 
-// ป้ายสรุปความยาก: ตอบถูกน้อยกว่า 40% = ยาก (อาจต้องทบทวนเนื้อหาหรือคำถาม)
-function StatsBadge({ stats }: { stats: QuizStat }) {
-    const tone = stats.correct_percent < 40 ? 'bg-red-50 text-red-700' : stats.correct_percent < 70 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
-    return (
-        <p className={`text-xs font-bold px-2 py-1 rounded-lg inline-block ${tone}`}>
-            ตอบถูก {stats.correct_percent}% ({stats.correct}/{stats.answered} ครั้ง)
-            {stats.correct_percent < 40 && ' · ข้อนี้นักเรียนตอบผิดเยอะ'}
-        </p>
-    );
-}
-
-// ข้อสอบที่บันทึกแล้ว 1 ข้อ: ดูเฉลย / แก้ไขในที่ / ลบ
+// ข้อสอบที่บันทึกแล้ว 1 ข้อ: ดูเฉลย + สถิติ / แก้ไขในที่ / ลบ
 export default function QuizCard({ quiz, index, onChanged, stats }: QuizCardProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<QuizDraft>(() => toDraft(quiz));
@@ -59,54 +48,70 @@ export default function QuizCard({ quiz, index, onChanged, stats }: QuizCardProp
         }
     };
 
-    return (
-        <li className={cardClass}>
-            <div className="flex items-start gap-3 mb-3">
-                <span className="text-lg font-black text-indigo-300 shrink-0">ข้อ {index + 1}</span>
-                {!editing && <p className="font-bold text-gray-900 flex-1 min-w-0 break-words whitespace-pre-line">{quiz.question}</p>}
-                {editing && <span className="flex-1" />}
-                {!editing && (
-                    <div className="flex shrink-0">
-                        <button onClick={() => { setDraft(toDraft(quiz)); setEditing(true); }} disabled={busy}
-                            className="p-2 text-gray-400 hover:text-indigo-600" aria-label={`แก้ไขข้อ ${index + 1}`} title="แก้ไข">
-                            <Pencil size={18} />
-                        </button>
-                        <button onClick={remove} disabled={busy}
-                            className="p-2 text-gray-400 hover:text-red-600" aria-label={`ลบข้อ ${index + 1}`} title="ลบ">
-                            <Trash2 size={18} />
-                        </button>
-                    </div>
-                )}
-            </div>
+    const hard = stats && stats.answered > 0 && stats.correct_percent < 40;
+    const maxChoice = stats ? Math.max(1, ...ANSWER_KEYS.map(k => stats.choices[k])) : 1;
 
-            {editing ? (
-                <div className="space-y-4">
-                    <QuestionEditor value={draft} onChange={setDraft} />
-                    {error && <p role="alert" className={errorBox}>{error}</p>}
-                    <div className="flex gap-2">
-                        <button onClick={save} disabled={busy} className={primaryButton}>{busy ? 'กำลังบันทึก...' : 'บันทึก'}</button>
-                        <button onClick={() => { setEditing(false); setError(''); }} disabled={busy} className={secondaryButton}>ยกเลิก</button>
+    return (
+        <li>
+            <Card className={cx('p-5 sm:p-6', hard && 'ring-rose-200')}>
+                <div className="flex items-start gap-3">
+                    <span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 font-bold font-display flex items-center justify-center shrink-0">{index + 1}</span>
+                    <div className="flex-1 min-w-0">
+                        {!editing && <p className="font-bold text-ink break-words whitespace-pre-line leading-7 pt-1">{quiz.question}</p>}
+                        {stats && stats.answered > 0 && !editing && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                <Badge tone={hard ? 'red' : stats.correct_percent < 70 ? 'amber' : 'green'}>
+                                    ตอบถูก {stats.correct_percent}% ({stats.correct}/{stats.answered})
+                                </Badge>
+                                {hard && <Badge tone="red"><TrendingDown size={12} /> นักเรียนผิดเยอะ ควรทบทวน</Badge>}
+                            </div>
+                        )}
                     </div>
+                    {!editing && (
+                        <div className="flex shrink-0 -mr-1">
+                            <button onClick={() => { setDraft(toDraft(quiz)); setEditing(true); }} disabled={busy}
+                                className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-brand-600" aria-label={`แก้ไขข้อ ${index + 1}`} title="แก้ไข"><Pencil size={17} /></button>
+                            <button onClick={remove} disabled={busy}
+                                className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`ลบข้อ ${index + 1}`} title="ลบ"><Trash2 size={17} /></button>
+                        </div>
+                    )}
                 </div>
-            ) : (
-                <>
-                    <ul className="grid sm:grid-cols-2 gap-2">
-                        {ANSWER_KEYS.map(k => {
-                            const isCorrect = quiz.correct_answer === k;
-                            return (
-                                <li key={k} className={`flex items-start gap-2 rounded-xl px-3 py-2 text-sm ${isCorrect ? 'bg-green-50 text-green-800 font-bold' : 'bg-gray-50 text-gray-600'}`}>
-                                    <span className="shrink-0">{k.toUpperCase()}.</span>
-                                    <span className="flex-1 min-w-0 break-words">{quiz[OPTION_FIELD[k]]}</span>
-                                    {stats && <span className="shrink-0 text-xs font-normal opacity-70" title="จำนวนครั้งที่นักเรียนเลือกตัวเลือกนี้">{stats.choices[k]} ครั้ง</span>}
-                                    {isCorrect && <Check size={16} className="shrink-0 mt-0.5" aria-label="คำตอบที่ถูก" />}
-                                </li>
-                            );
-                        })}
-                    </ul>
-                    {stats && stats.answered > 0 && <div className="mt-3"><StatsBadge stats={stats} /></div>}
-                    {error && <p role="alert" className={`${errorBox} mt-3`}>{error}</p>}
-                </>
-            )}
+
+                {editing ? (
+                    <div className="mt-4 space-y-4">
+                        <QuestionEditor value={draft} onChange={setDraft} />
+                        {error && <Alert>{error}</Alert>}
+                        <div className="flex justify-end gap-2">
+                            <Button variant="ghost" onClick={() => { setEditing(false); setError(''); }} disabled={busy}>ยกเลิก</Button>
+                            <Button onClick={save} disabled={busy}>{busy ? 'กำลังบันทึก...' : 'บันทึก'}</Button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <ul className="mt-4 grid sm:grid-cols-2 gap-2">
+                            {ANSWER_KEYS.map(k => {
+                                const isCorrect = quiz.correct_answer === k;
+                                const picks = stats?.choices[k] ?? 0;
+                                return (
+                                    <li key={k} className={cx('relative overflow-hidden flex items-start gap-2.5 rounded-xl px-3.5 py-2.5 text-sm',
+                                        isCorrect ? 'bg-emerald-50 text-emerald-800 font-semibold ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-600')}>
+                                        {/* แถบแสดงสัดส่วนคนที่เลือกตัวเลือกนี้ */}
+                                        {stats && stats.answered > 0 && (
+                                            <span className={cx('absolute inset-y-0 left-0', isCorrect ? 'bg-emerald-100' : 'bg-slate-200/60')}
+                                                style={{ width: `${(picks / maxChoice) * 100}%` }} aria-hidden="true" />
+                                        )}
+                                        <span className="relative font-bold shrink-0">{k.toUpperCase()}.</span>
+                                        <span className="relative flex-1 min-w-0 break-words">{quiz[OPTION_FIELD[k]]}</span>
+                                        {stats && stats.answered > 0 && <span className="relative text-xs opacity-70 shrink-0">{picks} คน</span>}
+                                        {isCorrect && <Check size={16} className="relative shrink-0 mt-0.5" aria-label="คำตอบที่ถูก" />}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                        {error && <Alert className="mt-3">{error}</Alert>}
+                    </>
+                )}
+            </Card>
         </li>
     );
 }

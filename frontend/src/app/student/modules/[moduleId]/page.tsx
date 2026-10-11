@@ -1,161 +1,121 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import ReactMarkdown from 'react-markdown';
-import { ChevronLeft, Sparkles } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { ArrowLeft, ArrowRight, ClipboardCheck, RefreshCw } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
-import type { ModuleDetail, StyledContent } from '@/lib/types';
+import type { ModuleDetail, Quiz, StyledContent } from '@/lib/types';
+import { LEARNING_STYLES, findStyle } from '@/lib/visual';
+import { Alert, Button, PageLoader } from '@/components/ui';
+import GeneratingScreen from '@/components/lesson/GeneratingScreen';
+import LessonReader from '@/components/lesson/LessonReader';
 
-export default function CourseContentPage() {
+type View = { kind: 'select' } | { kind: 'loading'; style: string } | { kind: 'read'; style: string } | { kind: 'error'; style: string; message: string };
+
+export default function LessonPage() {
     const { moduleId } = useParams<{ moduleId: string }>();
-    const [view, setView] = useState<'selection' | 'study'>('selection');
-    const [content, setContent] = useState<StyledContent | null>(null);
-    const [loading, setLoading] = useState(false);
     const [moduleInfo, setModuleInfo] = useState<ModuleDetail | null>(null);
+    const [quizCount, setQuizCount] = useState(0);
+    const [loadError, setLoadError] = useState('');
+    const [view, setView] = useState<View>({ kind: 'select' });
+    // เก็บเนื้อหาที่โหลดแล้วของแต่ละสไตล์ สลับกลับมาได้ทันทีไม่ต้องรอ
+    const [contents, setContents] = useState<Record<string, StyledContent>>({});
 
     useEffect(() => {
-        apiFetch<ModuleDetail>(`/api/modules/${moduleId}`).then(setModuleInfo).catch(console.error);
+        apiFetch<ModuleDetail>(`/api/modules/${moduleId}`).then(setModuleInfo).catch(err => setLoadError(err.message));
+        apiFetch<Quiz[]>(`/api/modules/${moduleId}/quizzes`).then(q => setQuizCount(q.length)).catch(console.error);
     }, [moduleId]);
 
-    // ข้อมูล Vibe เรียงตามรูป image_4c68f7.png
-    const learningVibes = [
-        { id: 'peer_to_peer', title: 'PEER TALK', sub: 'คุยภาษาเพื่อน กันเองสุดๆ', emoji: '🤝' },
-        { id: 'summary', title: 'THE ESSENCE', sub: 'เนื้อเน้นๆ ประหยัดเวลา', emoji: '🎯' },
-        { id: 'example_based', title: 'REAL CASE', sub: 'เรียนจากเหตุการณ์จริง', emoji: '💡' },
-        { id: 'gamified', title: 'QUEST MODE', sub: 'สนุกเหมือนทำภารกิจ', emoji: '🎮' },
-    ];
-
-    const loadAIContent = async (style: string) => {
-        setLoading(true); 
-        setView('study');
+    const openStyle = async (styleId: string) => {
+        window.scrollTo({ top: 0 });
+        if (contents[styleId]) return setView({ kind: 'read', style: styleId });
+        setView({ kind: 'loading', style: styleId });
         try {
             const data = await apiFetch<{ content: string | StyledContent }>(
-                `/api/modules/${moduleId}/content?style=${encodeURIComponent(style)}`
+                `/api/modules/${moduleId}/content?style=${encodeURIComponent(styleId)}`
             );
-            const parsed = typeof data.content === 'string' ? JSON.parse(data.content) : data.content;
-            setContent(parsed);
-        } catch (e) { 
-            console.error(e);
-            const message = e instanceof ApiError ? e.message : "AI สร้างเนื้อหาไม่สำเร็จ กรุณาลองใหม่";
-            setContent({ headline: "เกิดข้อผิดพลาด", intro: message, sections: [], key_points: [] });
+            const parsed: StyledContent = typeof data.content === 'string' ? JSON.parse(data.content) : data.content;
+            setContents(prev => ({ ...prev, [styleId]: parsed }));
+            setView({ kind: 'read', style: styleId });
+        } catch (e) {
+            const message = e instanceof ApiError ? e.message : 'AI สร้างเนื้อหาไม่สำเร็จ กรุณาลองใหม่';
+            setView({ kind: 'error', style: styleId, message });
         }
-        setLoading(false);
     };
 
-    // --- ส่วนที่ 1: หน้าเลือก Vibe (จัดแนวนอน 4 ช่องสวยๆ) ---
-    if (view === 'selection') {
-        return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4 font-sans overflow-hidden relative">
-                {moduleInfo && (
-                    <Link href={`/student/courses/${moduleInfo.course_id}`} className="absolute top-4 left-4 flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600">
-                        <ChevronLeft size={16} /> {moduleInfo.course_title}
-                    </Link>
-                )}
-                {/* Header Section - ปรับขนาด Pixel ลงให้พอดีหน้าจอ */}
-                <div className="text-center mb-12">
-                    <span className="text-blue-600 font-black tracking-[0.3em] text-[12px] uppercase mb-2 block">
-                        AI ADAPTIVE MODE
-                    </span>
-                    <h1 className="text-[40px] sm:text-[52px] md:text-[64px] font-black italic uppercase leading-none tracking-tighter text-black">
-                        CHOOSE YOUR<br/>LEARNING VIBE
-                    </h1>
-                    {moduleInfo && <p className="mt-4 text-gray-500 font-bold">{moduleInfo.title}</p>}
-                </div>
+    if (loadError) return <Alert>{loadError}</Alert>;
+    if (!moduleInfo) return <PageLoader />;
 
-                {/* แนวนอนเรียงกัน 4 ช่อง (Grid 4 Columns) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl">
-                    {learningVibes.map((vibe) => (
-                        <button 
-                            key={vibe.id} 
-                            onClick={() => loadAIContent(vibe.id)} 
-                            className="bg-white aspect-[3/4.2] rounded-[40px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] hover:-translate-y-2 transition-all duration-500 flex flex-col items-center justify-center p-6 border border-gray-100 group"
-                        >
-                            <div className="text-[60px] mb-8 transform group-hover:scale-110 transition-transform duration-500">
-                                {vibe.emoji}
-                            </div>
-                            <h3 className="text-[22px] font-black uppercase tracking-tighter text-gray-900 mb-1 leading-none text-center">
-                                {vibe.title}
-                            </h3>
-                            <p className="text-gray-400 font-bold text-[12px] tracking-tight text-center">
-                                {vibe.sub}
-                            </p>
-                        </button>
-                    ))}
-                </div>
-            </div>
+    if (view.kind === 'loading') {
+        const s = findStyle(view.style)!;
+        return <GeneratingScreen styleName={s.name} emoji={s.emoji} gradient={s.gradient} />;
+    }
+
+    if (view.kind === 'read' && contents[view.style]) {
+        return (
+            <LessonReader content={contents[view.style]} style={findStyle(view.style)!} moduleInfo={moduleInfo}
+                hasQuiz={quizCount > 0} onChangeStyle={() => { setView({ kind: 'select' }); window.scrollTo({ top: 0 }); }} />
         );
     }
 
-    // --- ส่วนที่ 2: หน้าเรียน (ธีมม่วง Indigo) ---
+    // --- เลือกสไตล์การเรียน ---
     return (
-        <div className="min-h-screen bg-white">
-            <nav className="bg-[#6366f1] p-4 text-white shadow-lg sticky top-0 z-50 flex justify-between items-center px-8">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => setView('selection')} className="hover:bg-[#4f46e5] p-2 rounded-full transition-colors flex items-center gap-1 font-bold text-sm">
-                        <ChevronLeft size={20} /> กลับ
-                    </button>
-                    <h1 className="text-lg font-bold">🎓 AI Smart Learning</h1>
-                </div>
-                <div className="hidden sm:flex items-center gap-2">
-                    <span className="bg-[#4f46e5] px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/20 flex items-center gap-2">
-                        <Sparkles size={12} /> AI Optimized
-                    </span>
-                </div>
-            </nav>
+        <div className="max-w-6xl mx-auto">
+            <Link href={`/student/courses/${moduleInfo.course_id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink">
+                <ArrowLeft size={16} /> {moduleInfo.course_title}
+            </Link>
 
-            {loading ? (
-                <div className="h-[80vh] flex flex-col items-center justify-center space-y-4">
-                    <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <div className="text-xl font-black italic text-indigo-600 uppercase tracking-widest animate-pulse">
-                        Generating...
-                    </div>
-                    <p className="text-sm text-gray-400 px-6 text-center">AI กำลังเรียบเรียงบทเรียนให้คุณ ครั้งแรกอาจใช้เวลาประมาณ 10-60 วินาที</p>
+            <div className="mt-6 text-center animate-fade-up">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-brand-700 ring-1 ring-brand-100 shadow-soft">
+                    ✨ AI ปรับบทเรียนให้เข้ากับคุณ
+                </span>
+                <h1 className="mt-5 text-3xl sm:text-5xl font-extrabold text-ink leading-tight">{moduleInfo.title}</h1>
+                <p className="mt-4 text-lg text-slate-500">วันนี้อยากเรียนแบบไหน? เลือกสไตล์ที่ใช่ แล้วเริ่มได้เลย</p>
+            </div>
+
+            {view.kind === 'error' && (
+                <div className="mt-8 max-w-2xl mx-auto">
+                    <Alert>
+                        <div>{view.message}</div>
+                        <button onClick={() => openStyle(view.style)} className="mt-2 inline-flex items-center gap-1.5 font-semibold underline">
+                            <RefreshCw size={14} /> ลองอีกครั้ง
+                        </button>
+                    </Alert>
                 </div>
-            ) : (
-                <main className="max-w-4xl mx-auto px-6 py-16">
-                    <header className="mb-20">
-                        <h1 className="text-5xl md:text-6xl font-black leading-none tracking-tighter uppercase mb-8 text-gray-900">
-                            {content?.headline}
-                        </h1>
-                        <p className="text-xl text-gray-400 leading-relaxed font-bold italic border-l-[8px] border-[#6366f1] pl-6">
-                            {content?.intro}
-                        </p>
-                    </header>
+            )}
 
-                    <div className="space-y-24">
-                        {content?.sections?.map((sec, i) => (
-                            <section key={i} className="group border-b border-gray-50 pb-20 last:border-0">
-                                <div className="text-[10px] font-black text-[#6366f1] mb-4 tracking-[0.3em] uppercase opacity-60">
-                                    PART 0{i+1}
-                                </div>
-                                <h2 className="text-3xl font-black mb-6 text-gray-900 uppercase tracking-tighter">
-                                    {sec.title}
-                                </h2>
-                                <div className="prose prose-lg prose-slate leading-relaxed text-gray-600">
-                                    <ReactMarkdown>{sec.content}</ReactMarkdown>
-                                </div>
-                            </section>
-                        ))}
-                    </div>
-
-                    <footer className="mt-32 bg-gray-900 rounded-[50px] p-12 text-white shadow-2xl">
-                        <h3 className="text-4xl font-black italic uppercase tracking-tighter mb-10">
-                            Core Summary
-                        </h3>
-                        <div className="grid md:grid-cols-2 gap-8 mb-12">
-                            {content?.key_points?.map((p: string, i: number) => (
-                                <div key={i} className="flex gap-4 border-t border-white/10 pt-6">
-                                    <span className="text-[#6366f1] font-black text-xl italic">0{i+1}</span>
-                                    <p className="text-md font-bold uppercase tracking-tight opacity-70 leading-snug">{p}</p>
-                                </div>
-                            ))}
+            <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {LEARNING_STYLES.map((style, i) => (
+                    <button key={style.id} type="button" onClick={() => openStyle(style.id)}
+                        className="group text-left rounded-[1.75rem] bg-white p-2 ring-1 ring-slate-200/70 shadow-soft hover:-translate-y-1.5 hover:shadow-lift hover:ring-brand-300 transition-all duration-300 animate-fade-up focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-300"
+                        style={{ animationDelay: `${i * 70}ms` }}>
+                        <div className={`relative h-40 rounded-[1.4rem] bg-gradient-to-br ${style.gradient} flex items-center justify-center overflow-hidden`}>
+                            <div className="absolute inset-0 bg-dots opacity-30" aria-hidden="true" />
+                            <span className="relative text-7xl group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300" aria-hidden="true">{style.emoji}</span>
+                            {contents[style.id] && <span className="absolute top-3 right-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-bold text-emerald-700">อ่านแล้ว</span>}
                         </div>
-                        <Link href={`/student/modules/${moduleId}/quiz`} className="block text-center w-full py-6 bg-[#6366f1] text-white rounded-[24px] text-xl font-black uppercase italic tracking-tighter hover:bg-white hover:text-[#6366f1] transition-all shadow-xl">
-                            Start Assessment →
-                        </Link>
-                    </footer>
-                </main>
+                        <div className="p-4 pb-5">
+                            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{style.en}</div>
+                            <div className="mt-1 text-xl font-bold text-ink">{style.name}</div>
+                            <p className="mt-2 text-sm text-slate-500 leading-6 min-h-12">{style.description}</p>
+                            <div className="mt-4 flex items-center justify-between">
+                                <div className="flex gap-1.5">
+                                    {style.tags.map(t => <span key={t} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${style.soft}`}>{t}</span>)}
+                                </div>
+                                <span className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center group-hover:bg-brand-600 group-hover:text-white transition">
+                                    <ArrowRight size={16} />
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
+
+            {quizCount > 0 && (
+                <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 text-sm text-slate-500">
+                    <span>เรียนมาแล้ว อยากทดสอบความรู้เลย?</span>
+                    <Button href={`/student/modules/${moduleInfo.id}/quiz`} variant="secondary" size="sm"><ClipboardCheck size={16} /> ไปทำแบบทดสอบ ({quizCount} ข้อ)</Button>
+                </div>
             )}
         </div>
     );

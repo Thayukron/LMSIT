@@ -2,14 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import type { AttemptResult } from '@/lib/types';
-import PageShell from '@/components/PageShell';
-import Spinner from '@/components/Spinner';
+import { Alert, Button, PageLoader } from '@/components/ui';
 import AttemptReview from '@/components/AttemptReview';
-import { primaryButton } from '@/lib/ui';
 
-// ดูผลสอบย้อนหลังรายครั้ง (นักเรียนเจ้าของผลสอบ หรือครูเจ้าของวิชา)
+// ผลสอบย้อนหลังรายครั้ง (นักเรียนเจ้าของผลสอบ หรือครูเจ้าของวิชา)
 export default function AttemptPage() {
     const { attemptId } = useParams<{ attemptId: string }>();
     const [result, setResult] = useState<AttemptResult | null>(null);
@@ -19,17 +18,24 @@ export default function AttemptPage() {
         apiFetch<AttemptResult>(`/api/attempts/${attemptId}`).then(setResult).catch(err => setError(err.message));
     }, [attemptId]);
 
-    if (error) return <PageShell title="เกิดข้อผิดพลาด" back={{ href: '/student/dashboard', label: 'ห้องเรียนของฉัน' }}><p className="text-red-600">{error}</p></PageShell>;
-    if (!result) return <Spinner />;
+    if (error) return <Alert>{error}</Alert>;
+    if (!result) return <PageLoader />;
 
     return (
-        <PageShell
-            title={`ผลสอบ: ${result.module_title}`}
-            back={{ href: `/student/modules/${result.module_id}/quiz`, label: 'กลับไปหน้าแบบทดสอบ' }}
-        >
-            {result.student_name && <p className="text-gray-500 mb-6">ผู้สอบ: {result.student_name}</p>}
+        <div className="max-w-3xl mx-auto space-y-6">
+            <Link href={`/student/modules/${result.module_id}/quiz`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink">
+                <ArrowLeft size={16} /> แบบทดสอบ: {result.module_title}
+            </Link>
+            {result.student_name && (
+                <div className="flex items-center gap-3">
+                    <span className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-fuchsia-500 text-white font-[Tahoma,'Leelawadee_UI',Thonburi,sans-serif] font-bold flex items-center justify-center">{result.student_name.charAt(0)}</span>
+                    <div><div className="text-xs text-slate-400">ผลสอบของ</div><div className="font-bold text-ink">{result.student_name}</div></div>
+                </div>
+            )}
             <AttemptReview result={result} />
-            <Link href={`/student/modules/${result.module_id}/quiz`} className={`${primaryButton} inline-block mt-8`}>ทำข้อสอบอีกครั้ง</Link>
-        </PageShell>
+            <div className="flex justify-center">
+                <Button href={`/student/modules/${result.module_id}/quiz`}><RotateCcw size={18} /> ทำแบบทดสอบอีกครั้ง</Button>
+            </div>
+        </div>
     );
 }

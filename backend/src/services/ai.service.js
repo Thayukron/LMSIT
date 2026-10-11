@@ -58,56 +58,120 @@ const generateJson = async ({ prompt, schema, temperature, validate }) => {
 
 // คำอธิบายแต่ละสไตล์ให้ AI (key ต้องตรงกับ ALLOWED_STYLES ใน module.controller)
 const STYLE_GUIDES = {
-    peer_to_peer: 'เพื่อนสอนเพื่อน: ใช้ภาษาพูดเป็นกันเองเหมือนรุ่นพี่อธิบายให้รุ่นน้องฟัง เปรียบเทียบกับเรื่องใกล้ตัว อธิบายศัพท์ยากด้วยคำง่ายๆ',
-    summary: 'สรุปเน้นๆ: กระชับที่สุด ใช้ bullet point เน้นเฉพาะประเด็นสำคัญและคำนิยาม ตัดส่วนที่ไม่จำเป็นออก',
-    example_based: 'เรียนจากตัวอย่างจริง: ทุกหัวข้อต้องมีตัวอย่างหรือกรณีศึกษาจากชีวิตจริง/การทำงานจริง แล้วค่อยสรุปหลักการ',
-    gamified: 'ภารกิจเกม: เล่าเนื้อหาเป็นด่านหรือภารกิจ ผู้เรียนเป็นตัวละครที่ต้องเก็บความรู้เพื่อผ่านแต่ละด่าน สนุกแต่เนื้อหาต้องถูกต้องครบถ้วน',
+    peer_to_peer: `สไตล์ "เพื่อนติวเพื่อน"
+- น้ำเสียง: รุ่นพี่ใจดีที่เก่งเรื่องนี้ มานั่งติวให้ตัวต่อตัว ใช้ "เรา" "นาย/เธอ" ได้ เป็นกันเองแต่สุภาพ มีมุกเบาๆ ได้
+- ชอบเปรียบเทียบเรื่องยากกับของใกล้ตัว (มือถือ เกม ร้านกาแฟ ห้องเรียน) ใช้บล็อก analogy อย่างน้อย 1 บล็อก
+- อธิบายศัพท์เทคนิคทันทีด้วยภาษาบ้านๆ และบอกว่า "จุดที่คนมักงง" คืออะไร (บล็อก warning หรือ tip)`,
+    summary: `สไตล์ "สรุปเน้นๆ"
+- น้ำเสียง: โค้ชที่เคารพเวลาผู้เรียน กระชับ ตรงประเด็น
+- แต่ละบล็อกสั้น ใช้ bullet point และ **ตัวหนา** กับคำสำคัญ ไม่เกิน 4-6 บรรทัดต่อบล็อก
+- เน้นบล็อก concept, steps, fact และ key_terms ให้ครบทุกคำนิยามสำคัญ`,
+    example_based: `สไตล์ "เรียนจากเคสจริง"
+- น้ำเสียง: ผู้เชี่ยวชาญที่เล่าประสบการณ์จากการทำงานจริง
+- เปิดแต่ละหัวข้อด้วยสถานการณ์/เคสที่จับต้องได้ (บล็อก example หรือ story) แล้วค่อยสรุปหลักการ (บล็อก concept)
+- ตัวอย่างต้องเฉพาะเจาะจง มีชื่อคน สถานที่ ตัวเลข ให้เห็นภาพ`,
+    gamified: `สไตล์ "ภารกิจเกม"
+- น้ำเสียง: ผู้บรรยายเกมผจญภัย ผู้เรียนคือ "ผู้กล้า" ที่ต้องผ่านด่าน เก็บไอเทมความรู้
+- ตั้งชื่อบล็อกเป็นด่าน เช่น "ด่าน 1: ..." ใช้บล็อก mission เป็นหลัก แทรก story และ tip (เป็น "ไอเทมลับ")
+- สนุกและมีพลัง แต่เนื้อหาความรู้ต้องถูกต้องครบถ้วน ห้ามให้เรื่องเล่ากลบเนื้อหา`,
 };
+
+// ชนิดบล็อกเนื้อหา — หน้าเว็บแสดงแต่ละชนิดด้วยสีและไอคอนต่างกัน
+const BLOCK_TYPES = ['concept', 'example', 'analogy', 'steps', 'tip', 'warning', 'story', 'mission', 'fact'];
 
 const STYLED_CONTENT_SCHEMA = {
     type: 'object',
     properties: {
-        headline: { type: 'string', description: 'ชื่อบทเรียนที่น่าดึงดูด' },
-        intro: { type: 'string', description: 'คำนำสั้นๆ ที่สรุปภาพรวม' },
+        headline: { type: 'string', description: 'ชื่อบทเรียนที่ดึงดูด ไม่เกิน 60 ตัวอักษร' },
+        emoji: { type: 'string', description: 'อีโมจิ 1 ตัวที่แทนบทเรียนนี้' },
+        intro: { type: 'string', description: 'คำโปรยเปิดเรื่อง 2-3 ประโยค ชวนให้อยากอ่านต่อ (hook)' },
+        estimated_minutes: { type: 'integer', description: 'เวลาอ่านโดยประมาณ (นาที)' },
+        objectives: { type: 'array', items: { type: 'string' }, description: 'เรียนจบแล้วจะทำอะไรได้ 2-4 ข้อ' },
         sections: {
             type: 'array',
+            description: '4-8 บล็อก ใช้ชนิดบล็อกให้หลากหลาย',
             items: {
                 type: 'object',
                 properties: {
+                    type: { type: 'string', enum: BLOCK_TYPES },
+                    emoji: { type: 'string' },
                     title: { type: 'string' },
-                    content: { type: 'string', description: 'เนื้อหาในรูปแบบ Markdown' },
-                    image_keyword: { type: 'string', description: 'คำค้นรูปภาพภาษาอังกฤษสั้นๆ' },
+                    content: { type: 'string', description: 'Markdown: ย่อหน้าสั้น, **ตัวหนา**, bullet, ตาราง ได้' },
+                    highlight: { type: 'string', description: 'ประโยคเด็ด 1 ประโยคที่ควรจำจากบล็อกนี้ (ไม่บังคับ)' },
                 },
-                required: ['title', 'content'],
+                required: ['type', 'emoji', 'title', 'content'],
             },
         },
-        key_points: { type: 'array', items: { type: 'string' } },
+        quick_checks: {
+            type: 'array',
+            description: 'คำถามเช็กความเข้าใจระหว่างอ่าน 2-3 ข้อ',
+            items: {
+                type: 'object',
+                properties: {
+                    after_section: { type: 'integer', description: 'แสดงหลังบล็อกลำดับที่เท่าไร (เริ่มที่ 0)' },
+                    question: { type: 'string' },
+                    choices: { type: 'array', items: { type: 'string' }, description: '3-4 ตัวเลือก' },
+                    answer_index: { type: 'integer', description: 'ตำแหน่งคำตอบที่ถูกใน choices (เริ่มที่ 0)' },
+                    explanation: { type: 'string', description: 'อธิบายสั้นๆ ว่าทำไมคำตอบนี้ถูก' },
+                },
+                required: ['after_section', 'question', 'choices', 'answer_index', 'explanation'],
+            },
+        },
+        key_terms: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: { term: { type: 'string' }, meaning: { type: 'string' } },
+                required: ['term', 'meaning'],
+            },
+        },
+        key_points: { type: 'array', items: { type: 'string' }, description: 'สรุปสิ่งที่ต้องจำ 3-5 ข้อ' },
+        closing: { type: 'string', description: 'ข้อความปิดท้าย 1-2 ประโยค ชวนไปทำแบบทดสอบ' },
     },
-    required: ['headline', 'intro', 'sections', 'key_points'],
+    required: ['headline', 'emoji', 'intro', 'estimated_minutes', 'objectives', 'sections', 'quick_checks', 'key_terms', 'key_points', 'closing'],
 };
 
 const isNonEmptyString = (v) => typeof v === 'string' && v.trim() !== '';
+const isStringArray = (v) => Array.isArray(v) && v.every(x => typeof x === 'string');
 
 // ตรวจเนื้อหาที่ AI สร้าง (ใช้ทั้งตอนได้จาก AI และตอนอ่านจาก cache) — คืนข้อความ error หรือ null
+// cache รูปแบบเก่าจะไม่ผ่าน แล้วถูกสร้างใหม่อัตโนมัติ
 const styledContentError = (data) => {
     if (!data || typeof data !== 'object') return 'ไม่ใช่ object';
-    if (!isNonEmptyString(data.headline)) return 'ไม่มี headline';
-    if (typeof data.intro !== 'string') return 'ไม่มี intro';
-    if (!Array.isArray(data.sections) || data.sections.length === 0) return 'ไม่มี sections';
-    if (data.sections.some(s => !isNonEmptyString(s?.title) || !isNonEmptyString(s?.content))) return 'section ไม่ครบ';
-    if (!Array.isArray(data.key_points) || data.key_points.some(p => typeof p !== 'string')) return 'key_points ไม่ถูกต้อง';
+    if (!isNonEmptyString(data.headline) || !isNonEmptyString(data.intro)) return 'ไม่มี headline/intro';
+    if (!isStringArray(data.objectives) || !isStringArray(data.key_points)) return 'objectives/key_points ไม่ถูกต้อง';
+    if (!Array.isArray(data.sections) || data.sections.length < 2) return 'sections น้อยเกินไป';
+    if (data.sections.some(s => !BLOCK_TYPES.includes(s?.type) || !isNonEmptyString(s.title) || !isNonEmptyString(s.content))) {
+        return 'section ไม่ครบหรือชนิดไม่ถูกต้อง';
+    }
+    if (!Array.isArray(data.quick_checks) || data.quick_checks.some(q =>
+        !isNonEmptyString(q?.question) || !isStringArray(q.choices) || q.choices.length < 2 ||
+        !Number.isInteger(q.answer_index) || q.answer_index < 0 || q.answer_index >= q.choices.length)) {
+        return 'quick_checks ไม่ถูกต้อง';
+    }
+    if (!Array.isArray(data.key_terms) || data.key_terms.some(t => !isNonEmptyString(t?.term) || !isNonEmptyString(t.meaning))) {
+        return 'key_terms ไม่ถูกต้อง';
+    }
     return null;
 };
 
-const buildStylePrompt = (styleType, originalText) => `คุณคือผู้เชี่ยวชาญด้านการออกแบบการเรียนรู้ (Learning Designer)
-จงเรียบเรียงเนื้อหาบทเรียนต่อไปนี้ใหม่เป็นภาษาไทย ตามสไตล์การเรียน:
+const buildStylePrompt = (styleType, originalText) => `คุณคือนักออกแบบการเรียนรู้ระดับมืออาชีพ ที่เขียนบทเรียนออนไลน์ภาษาไทยได้สนุก อ่านง่าย และจำได้จริง
+จงเปลี่ยนเนื้อหาต้นฉบับด้านล่างให้เป็นบทเรียนที่น่าเรียน ตามสไตล์นี้:
+
 ${STYLE_GUIDES[styleType]}
 
-เงื่อนไข:
-1. ต้องครอบคลุมเนื้อหาสำคัญทั้งหมดของต้นฉบับ และห้ามเพิ่มข้อเท็จจริงที่ต้นฉบับไม่มี
-2. ส่วน "content" ของแต่ละ section ใช้ Markdown ได้ (หัวข้อย่อย ตัวหนา รายการ)
-3. "image_keyword" เป็นคำค้นภาษาอังกฤษสั้นๆ ที่สื่อถึงเนื้อหาส่วนนั้น
-4. "key_points" คือประเด็นสำคัญ 3-6 ข้อ
+หลักการเขียนที่ต้องทำทุกสไตล์:
+1. ความถูกต้องมาก่อน: ครอบคลุมเนื้อหาสำคัญทั้งหมดของต้นฉบับ ห้ามแต่งข้อเท็จจริงที่ต้นฉบับไม่มี (ตัวอย่าง/การเปรียบเทียบที่แต่งขึ้นเพื่ออธิบายทำได้)
+2. ห้ามเขียนเป็นก้อนข้อความยาว: ย่อหน้าละ 1-3 ประโยค ใช้ bullet, **ตัวหนา**กับคำสำคัญ และตาราง Markdown เมื่อเปรียบเทียบหลายสิ่ง
+3. เปิดเรื่องด้วยคำถามหรือสถานการณ์ที่ทำให้ผู้เรียนอยากรู้ ไม่ใช่ประโยคนิยามแห้งๆ
+4. ใช้ชนิดบล็อกให้หลากหลายอย่างน้อย 4 ชนิด:
+   concept = อธิบายแนวคิดหลัก | example = ตัวอย่างจริง | analogy = เปรียบเทียบกับสิ่งใกล้ตัว
+   steps = ขั้นตอน/ลำดับ (ใช้ list มีเลข) | tip = เคล็ดลับ | warning = จุดที่มักเข้าใจผิด
+   story = เรื่องเล่าสั้น | mission = ภารกิจ/ด่าน | fact = รู้หรือไม่? ข้อมูลน่าสนใจ
+5. ทุกบล็อกมีอีโมจิที่เข้ากับหัวข้อ และ highlight เป็นประโยคเด็ดที่ควรจำ (ถ้ามี)
+6. quick_checks ถามความเข้าใจ ไม่ใช่ถามจำคำ และวางไว้หลังบล็อกที่เกี่ยวข้อง (choices ไม่ต้องใส่ ก. ข. หรือ A. B. นำหน้า)
+7. key_terms คือศัพท์สำคัญพร้อมความหมายภาษาง่าย
+8. ภาษาไทยเป็นธรรมชาติ ไม่แปลตรงตัว ไม่ใช้คำฟุ่มเฟือย
 
 เนื้อหาต้นฉบับ:
 """

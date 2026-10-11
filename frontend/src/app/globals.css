@@ -1,18 +1,109 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---------- Design tokens ---------- */
+@theme inline {
+  --font-sans: var(--font-anuphan), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-prompt), var(--font-anuphan), ui-sans-serif, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-noto-sans-thai);
+@theme {
+  /* สีหลักของแบรนด์ (ม่วงคราม) */
+  --color-brand-50: #f4f2ff;
+  --color-brand-100: #ebe7ff;
+  --color-brand-200: #d9d1ff;
+  --color-brand-300: #bcadff;
+  --color-brand-400: #9b80ff;
+  --color-brand-500: #7c55fb;
+  --color-brand-600: #6a35f1;
+  --color-brand-700: #5a25d8;
+  --color-brand-800: #4b20b0;
+  --color-brand-900: #3f1e8f;
+  --color-brand-950: #260f5e;
+
+  --color-canvas: #f6f6fb;
+  --color-ink: #12112a;
+
+  --shadow-soft: 0 1px 2px rgb(18 17 42 / 0.04), 0 8px 24px -8px rgb(18 17 42 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(18 17 42 / 0.04), 0 20px 40px -12px rgb(76 29 149 / 0.25);
+
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-pop: pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes shimmer {
+    from { background-position: -400px 0; }
+    to { background-position: 400px 0; }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+
+/* ---------- Base ---------- */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: var(--color-brand-200);
+}
+
+/* ---------- Utilities ---------- */
+@utility text-gradient {
+  background-image: linear-gradient(100deg, var(--color-brand-600), #d946ef 55%, #f97316);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-dots {
+  background-image: radial-gradient(rgb(18 17 42 / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@utility skeleton {
+  background: linear-gradient(90deg, #ececf4 0px, #f6f6fb 120px, #ececf4 240px);
+  background-size: 800px 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* เนื้อหาบทเรียน (Markdown) */
+.lesson-prose {
+  @apply prose prose-slate max-w-none prose-p:leading-8 prose-li:leading-7 prose-strong:text-ink prose-headings:font-display prose-a:text-brand-600;
+  font-size: 1.0625rem;
+}
+.lesson-prose table {
+  @apply text-sm;
+}
+.lesson-prose th {
+  @apply bg-slate-50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

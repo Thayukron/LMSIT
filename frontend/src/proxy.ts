@@ -30,10 +30,9 @@ export function proxy(request: NextRequest) {
     const session = readSession(request);
     const isAuthPage = pathname === '/login' || pathname === '/register';
 
-    // หน้าแรก และหน้า Login/สมัคร: ถ้า login อยู่แล้วพาไปหน้าหลักของ role นั้น
+    // หน้าแรก (landing) และหน้า Login/สมัคร: ถ้า login อยู่แล้วพาไปหน้าหลักของ role นั้น
     if (pathname === '/' || isAuthPage) {
         if (session) return NextResponse.redirect(new URL(HOME_BY_ROLE[session.role], request.url));
-        if (pathname === '/') return NextResponse.redirect(new URL('/login', request.url));
         return NextResponse.next();
     }
 
