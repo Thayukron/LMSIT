@@ -1,24 +1,74 @@
+"use client";
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
+import { useRouter } from 'next/navigation';
+import { Plus, BookOpen } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import type { CourseSummary } from '@/lib/types';
+import PageShell from '@/components/PageShell';
+import CourseForm from '@/components/teacher/CourseForm';
+import { cardClass, primaryButton } from '@/lib/ui';
 
-// หน้าหลักของครู: เครื่องมือจัดการวิชา/เนื้อหา/ข้อสอบ จะเพิ่มในระยะที่ 2
 export default function TeacherHome() {
+    const router = useRouter();
+    const [courses, setCourses] = useState<CourseSummary[] | null>(null);
+    const [error, setError] = useState('');
+    const [creating, setCreating] = useState(false);
+
+    const loadCourses = useCallback(() => {
+        apiFetch<CourseSummary[]>('/api/courses?mine=1')
+            .then(setCourses)
+            .catch(err => setError(err.message));
+    }, []);
+
+    useEffect(loadCourses, [loadCourses]);
+
+    const createCourse = async (values: { title: string; description: string }) => {
+        const { id } = await apiFetch<{ id: number }>('/api/courses', { method: 'POST', body: JSON.stringify(values) });
+        router.push(`/teacher/courses/${id}`);
+    };
+
     return (
-        <div className="min-h-screen bg-gray-50 text-gray-800">
-            <Navbar />
-            <div className="container mx-auto mt-10 p-4 max-w-6xl">
-                <h2 className="text-3xl mb-6 font-bold text-gray-800 border-l-8 border-indigo-600 pl-4">
-                    ห้องพักครู
-                </h2>
-                <div className="bg-white rounded-[2rem] p-8 shadow-sm">
-                    <p className="text-gray-500 mb-6">
-                        ระบบจัดการวิชา อัปโหลดเนื้อหา และสร้างข้อสอบ กำลังพัฒนา (ระยะที่ 2)
-                    </p>
-                    <Link href="/student/dashboard" className="text-indigo-600 font-bold hover:underline">
-                        ดูบทเรียนในมุมมองนักเรียน &rarr;
-                    </Link>
+        <PageShell
+            title="วิชาที่ฉันสอน"
+            actions={!creating && (
+                <button onClick={() => setCreating(true)} className={`${primaryButton} flex items-center gap-2`}>
+                    <Plus size={18} /> สร้างวิชาใหม่
+                </button>
+            )}
+        >
+            {creating && (
+                <div className={`${cardClass} mb-8`}>
+                    <h3 className="font-bold text-lg mb-4">สร้างวิชาใหม่</h3>
+                    <CourseForm submitLabel="สร้างวิชา" onSubmit={createCourse} onCancel={() => setCreating(false)} />
                 </div>
-            </div>
-        </div>
+            )}
+
+            {error && <p className="text-red-600">{error}</p>}
+            {!courses && !error && <p className="text-gray-400">กำลังโหลด...</p>}
+
+            {courses && courses.length === 0 && !creating && (
+                <div className="py-20 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200">
+                    <p className="text-gray-400 text-lg mb-4">คุณยังไม่มีวิชา</p>
+                    <button onClick={() => setCreating(true)} className={primaryButton}>สร้างวิชาแรก</button>
+                </div>
+            )}
+
+            {courses && courses.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {courses.map(c => (
+                        <Link key={c.id} href={`/teacher/courses/${c.id}`}
+                            className={`${cardClass} hover:shadow-lg hover:-translate-y-0.5 transition-all flex flex-col`}>
+                            <div className="w-12 h-12 mb-4 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                                <BookOpen size={24} />
+                            </div>
+                            <h3 className="font-bold text-xl text-gray-900 mb-2 break-words">{c.title}</h3>
+                            <p className="text-gray-400 text-sm line-clamp-2 flex-1">{c.description || 'ไม่มีคำอธิบาย'}</p>
+                            <p className="mt-4 text-sm text-indigo-600 font-bold">{c.module_count} บทเรียน · จัดการ &rarr;</p>
+                        </Link>
+                    ))}
+                </div>
+            )}
+        </PageShell>
     );
 }

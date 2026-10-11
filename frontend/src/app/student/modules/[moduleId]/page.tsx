@@ -1,16 +1,22 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { ChevronLeft, Sparkles } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
-import type { StyledContent } from '@/lib/types';
+import { apiFetch, ApiError } from '@/lib/api';
+import type { ModuleDetail, StyledContent } from '@/lib/types';
 
 export default function CourseContentPage() {
     const { moduleId } = useParams<{ moduleId: string }>();
     const [view, setView] = useState<'selection' | 'study'>('selection');
     const [content, setContent] = useState<StyledContent | null>(null);
     const [loading, setLoading] = useState(false);
+    const [moduleInfo, setModuleInfo] = useState<ModuleDetail | null>(null);
+
+    useEffect(() => {
+        apiFetch<ModuleDetail>(`/api/modules/${moduleId}`).then(setModuleInfo).catch(console.error);
+    }, [moduleId]);
 
     // ข้อมูล Vibe เรียงตามรูป image_4c68f7.png
     const learningVibes = [
@@ -25,13 +31,14 @@ export default function CourseContentPage() {
         setView('study');
         try {
             const data = await apiFetch<{ content: string | StyledContent }>(
-                `/api/courses/modules/${moduleId}/content?style=${encodeURIComponent(style)}`
+                `/api/modules/${moduleId}/content?style=${encodeURIComponent(style)}`
             );
             const parsed = typeof data.content === 'string' ? JSON.parse(data.content) : data.content;
             setContent(parsed);
         } catch (e) { 
             console.error(e);
-            setContent({ headline: "Error", intro: "AI Failed to parse content", sections: [], key_points: [] });
+            const message = e instanceof ApiError ? e.message : "AI สร้างเนื้อหาไม่สำเร็จ กรุณาลองใหม่";
+            setContent({ headline: "เกิดข้อผิดพลาด", intro: message, sections: [], key_points: [] });
         }
         setLoading(false);
     };
@@ -39,15 +46,21 @@ export default function CourseContentPage() {
     // --- ส่วนที่ 1: หน้าเลือก Vibe (จัดแนวนอน 4 ช่องสวยๆ) ---
     if (view === 'selection') {
         return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4 font-sans overflow-hidden">
+            <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4 font-sans overflow-hidden relative">
+                {moduleInfo && (
+                    <Link href={`/student/courses/${moduleInfo.course_id}`} className="absolute top-4 left-4 flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600">
+                        <ChevronLeft size={16} /> {moduleInfo.course_title}
+                    </Link>
+                )}
                 {/* Header Section - ปรับขนาด Pixel ลงให้พอดีหน้าจอ */}
                 <div className="text-center mb-12">
                     <span className="text-blue-600 font-black tracking-[0.3em] text-[12px] uppercase mb-2 block">
                         AI ADAPTIVE MODE
                     </span>
-                    <h1 className="text-[52px] md:text-[64px] font-black italic uppercase leading-none tracking-tighter text-black">
+                    <h1 className="text-[40px] sm:text-[52px] md:text-[64px] font-black italic uppercase leading-none tracking-tighter text-black">
                         CHOOSE YOUR<br/>LEARNING VIBE
                     </h1>
+                    {moduleInfo && <p className="mt-4 text-gray-500 font-bold">{moduleInfo.title}</p>}
                 </div>
 
                 {/* แนวนอนเรียงกัน 4 ช่อง (Grid 4 Columns) */}

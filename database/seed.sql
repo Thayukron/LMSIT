@@ -8,8 +8,8 @@ INSERT INTO users (name, email, password_hash, role) VALUES
     ('ครูตัวอย่าง', 'teacher@lmsit.local', '$2b$10$VKdr/tfVI8YFHL.RFSvteOyqzz4Or4hhThYQ3jt2CBpw6RUHcOwUe', 'TEACHER'),
     ('นักเรียนตัวอย่าง', 'student@lmsit.local', '$2b$10$Fn0IXk2DyaHvCnrwvzbsZeTtMTeHNbPNCzGqFrNV685FFVI0gGZIa', 'STUDENT');
 
-INSERT INTO courses (id, title, description) VALUES
-    (1, 'พื้นฐานเทคโนโลยีสารสนเทศ', 'วิชาตัวอย่างสำหรับทดลองระบบ');
+INSERT INTO courses (id, title, description, teacher_id) VALUES
+    (1, 'พื้นฐานเทคโนโลยีสารสนเทศ', 'วิชาตัวอย่างสำหรับทดลองระบบ', 1);
 
 INSERT INTO modules (id, course_id, title, original_content) VALUES
     (1, 1, 'ความรู้เบื้องต้นเกี่ยวกับคอมพิวเตอร์',

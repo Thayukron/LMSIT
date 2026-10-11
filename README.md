@@ -12,16 +12,16 @@
 |---|---|---|
 | 0 | วางรากฐาน: โครงสร้างโปรเจกต์, package.json, schema, env | ✅ เสร็จ |
 | 1 | ระบบผู้ใช้: Register/Login (JWT), แยกสิทธิ์ครู/นักเรียน | ✅ เสร็จ |
-| 2 | CRUD วิชา/โมดูล/ข้อสอบ, หน้าครู, หน้าทำข้อสอบ, เก็บคะแนน, Dashboard | ⏳ |
+| 2 | CRUD วิชา/บทเรียน ✅ · จัดการข้อสอบ ⏳ · หน้าทำข้อสอบ + เก็บคะแนน ⏳ · Dashboard ⏳ | 🚧 กำลังทำ |
 | 3 | ความเสถียรของ AI: ตรวจ JSON, cache หลายเวอร์ชัน, จำกัดความยาวเนื้อหา | ⏳ |
 | 4 | ความปลอดภัยและพร้อมใช้งานจริง: validation, rate limit, CORS, tests | ⏳ |
 
 ### มีแล้วตอนนี้
 - สมัครสมาชิก (นักเรียน) / เข้าสู่ระบบ / ออกจากระบบ ด้วย JWT ใน httpOnly cookie
 - แยกสิทธิ์ครู/นักเรียน ทั้งฝั่ง API และหน้าเว็บ (นักเรียนจะไม่ได้รับเฉลยข้อสอบ)
-- นำเข้าเนื้อหาจาก PDF / Word (.docx) / URL (API)
-- นำเข้าข้อสอบด้วย AI จากข้อความดิบ และสร้างข้อสอบเอง (API)
-- นักเรียนดูรายการโมดูล และเลือกสไตล์เนื้อหา 4 แบบ (เพื่อนสอนเพื่อน, สรุป, ตัวอย่าง, เกม) พร้อม cache ผลจาก AI
+- **ครู:** สร้าง/แก้ไข/ลบวิชาของตัวเอง, เพิ่มบทเรียนจากไฟล์ (PDF, Word .docx, .txt ไม่เกิน 10MB) / URL / พิมพ์เอง, แก้ไขเนื้อหาบทเรียน (ล้าง cache ของ AI อัตโนมัติ)
+- **นักเรียน:** ดูรายวิชา → รายการบทเรียน → เลือกสไตล์เนื้อหา 4 แบบ (เพื่อนสอนเพื่อน, สรุป, ตัวอย่าง, เกม) พร้อม cache ผลจาก AI
+- ข้อสอบ: สร้างเอง / ให้ AI แยกจากข้อความดิบ (มีแค่ API — หน้าจัดการข้อสอบอยู่ในส่วนถัดไป)
 
 ---
 
@@ -34,19 +34,21 @@ LMSIT/
 │   │   ├── app.js           # จุดเริ่มต้นของ Server
 │   │   ├── config/db.js     # MySQL connection pool
 │   │   ├── controllers/     # Logic ของแต่ละ API
-│   │   ├── middleware/      # Multer (อัปโหลดไฟล์)
+│   │   ├── middleware/      # ตรวจ login/role, อัปโหลดไฟล์ (Multer)
 │   │   ├── routes/          # API Endpoints
-│   │   └── services/        # AI (Gemini) และ Parser (PDF/Docx/URL)
+│   │   ├── services/        # AI (Gemini) และ Parser (PDF/Docx/TXT/URL)
+│   │   └── utils/           # ตรวจ ID และสิทธิ์เจ้าของวิชา
 │   └── .env.example
 ├── frontend/                # Next.js (App Router) + Tailwind
-│   ├── src/app/             # หน้า login, register, student/*, teacher
-│   ├── src/components/      # Navbar, AuthForm
-│   ├── src/lib/             # apiFetch และ TypeScript types
+│   ├── src/app/             # หน้า login, register, student/*, teacher/*
+│   ├── src/components/      # Navbar, PageShell, AuthForm, teacher/*
+│   ├── src/lib/             # apiFetch, TypeScript types, class ของ Tailwind ที่ใช้ซ้ำ
 │   ├── src/proxy.ts         # กันหน้าที่ต้อง login และพาไปหน้าตาม role
 │   └── .env.example
 └── database/
-    ├── schema.sql           # สร้างฐานข้อมูลและตาราง
-    └── seed.sql             # ข้อมูลตัวอย่าง
+    ├── schema.sql           # สร้างฐานข้อมูลและตาราง (ติดตั้งใหม่)
+    ├── seed.sql             # ข้อมูลตัวอย่าง
+    └── migrations/          # อัปเกรดฐานข้อมูลที่มีอยู่แล้ว
 ```
 
 ---
@@ -62,6 +64,8 @@ mysql -u root -p < database/schema.sql
 mysql -u root -p < database/seed.sql     # (ไม่บังคับ) ข้อมูลตัวอย่าง
 ```
 หรือ Import สองไฟล์นี้ผ่าน phpMyAdmin
+
+**มีฐานข้อมูลเดิมอยู่แล้ว?** อย่ารัน `seed.sql` ซ้ำ ให้รัน `schema.sql` (เพิ่มตารางที่ขาด) แล้วรันไฟล์ใน `database/migrations/` ที่ยังไม่เคยรันตามลำดับเลข แต่ละไฟล์รันครั้งเดียว
 
 ### 2. Backend
 ```bash
@@ -100,12 +104,16 @@ Frontend ส่งต่อทุก request `/api/*` ไปที่ Backend (`
 | POST | `/api/auth/login` | - | เข้าสู่ระบบ (login ผิดได้ 10 ครั้ง/15 นาที ต่ออีเมล) |
 | POST | `/api/auth/logout` | - | ออกจากระบบ |
 | GET | `/api/auth/me` | login | ข้อมูลผู้ใช้ปัจจุบัน |
-| GET | `/api/courses` | login | รายการโมดูลทั้งหมด |
-| GET | `/api/courses/modules/:moduleId` | login | ข้อมูลโมดูล |
-| GET | `/api/courses/modules/:moduleId/content?style=summary` | login | เนื้อหาที่ AI ปรับสไตล์ (`peer_to_peer`, `summary`, `example_based`, `gamified`) |
-| GET | `/api/courses/modules/:moduleId/quizzes` | login | ข้อสอบของโมดูล |
-| POST | `/api/courses/upload-module` | ครู | นำเข้าเนื้อหา (form-data: `courseId`, `title`, `file` หรือ `url`) |
-| POST | `/api/courses/import-smart-quiz` | ครู | ให้ AI แยกข้อสอบจากข้อความ (`moduleId`, `rawText`) |
-| POST | `/api/courses/create-quiz` | ครู | สร้างข้อสอบเอง (`moduleId`, `questions[]`) |
+| GET | `/api/courses` | login | รายการวิชา (`?mine=1` = เฉพาะวิชาที่ครูคนนี้สอน) |
+| POST | `/api/courses` | ครู | สร้างวิชา (`title`, `description`) |
+| GET | `/api/courses/:courseId` | login | รายละเอียดวิชา + รายการบทเรียน |
+| PUT / DELETE | `/api/courses/:courseId` | ครูเจ้าของ | แก้ไข / ลบวิชา (ลบบทเรียนและข้อสอบตามไปด้วย) |
+| POST | `/api/courses/:courseId/modules` | ครูเจ้าของ | เพิ่มบทเรียน (form-data: `title` + `file` หรือ `url` หรือ `text`) |
+| GET | `/api/modules/:moduleId` | login | ข้อมูลบทเรียน (ครูเจ้าของได้เนื้อหาต้นฉบับด้วย) |
+| PUT / DELETE | `/api/modules/:moduleId` | ครูเจ้าของ | แก้ไข (`title`, `original_content`) / ลบบทเรียน |
+| GET | `/api/modules/:moduleId/content?style=summary` | login | เนื้อหาที่ AI ปรับสไตล์ (`peer_to_peer`, `summary`, `example_based`, `gamified`) |
+| GET | `/api/modules/:moduleId/quizzes` | login | ข้อสอบ (เฉลยส่งให้เฉพาะครูเจ้าของ) |
+| POST | `/api/modules/:moduleId/quizzes` | ครูเจ้าของ | สร้างข้อสอบเอง (`questions[]`) |
+| POST | `/api/modules/:moduleId/quizzes/import-ai` | ครูเจ้าของ | ให้ AI แยกข้อสอบจากข้อความ (`rawText`) |
 
-> ⚠️ ยังไม่ได้ปิดช่องโหว่ด้านความปลอดภัยที่เหลือ (ระยะ 4) เช่น การตรวจค่า style, SSRF ในการดึง URL, ขนาดไฟล์อัปโหลด — ยังไม่ควรเปิดใช้งานจริงบนอินเทอร์เน็ต
+> ⚠️ ยังมีช่องโหว่ที่ต้องปิดในระยะ 4 เช่น SSRF ในการดึงเนื้อหาจาก URL และ rate limit ของการสมัคร/เรียก AI — ยังไม่ควรเปิดใช้งานจริงบนอินเทอร์เน็ต

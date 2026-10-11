@@ -19,12 +19,15 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- วิชาหลัก
+-- วิชาหลัก (teacher_id = ครูเจ้าของวิชา มีสิทธิ์แก้ไข/ลบ)
 CREATE TABLE IF NOT EXISTS courses (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     title       VARCHAR(255) NOT NULL,
     description TEXT,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    teacher_id  INT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_courses_teacher FOREIGN KEY (teacher_id)
+        REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- หน่วยการเรียนรู้ (เก็บเนื้อหาต้นฉบับที่ดึงจาก PDF / Word / URL)

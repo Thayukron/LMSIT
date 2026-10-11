@@ -1,152 +1,169 @@
 // backend/src/controllers/course.controller.js
 const db = require('../config/db');
-const aiService = require('../services/ai.service');
-const { parseContent } = require('../services/parser.service');
+const { parseFile, parseUrl, cleanText, MAX_CONTENT_LENGTH } = require('../services/parser.service');
+const { toId, findOwnedCourse } = require('../utils/access');
+
+// ตรวจชื่อ/คำอธิบายวิชา คืนข้อความ error หรือ null ถ้าถูกต้อง
+const validateCourseInput = (title, description) => {
+    if (!title || title.length > 255) return "กรุณากรอกชื่อวิชา (ไม่เกิน 255 ตัวอักษร)";
+    if (description.length > 5000) return "คำอธิบายวิชายาวเกินไป (ไม่เกิน 5000 ตัวอักษร)";
+    return null;
+};
 
 /**
- * 1. นำเข้าเนื้อหาหลัก (Admin)
+ * 1. รายการวิชา (?mine=1 สำหรับครู = เฉพาะวิชาที่ตัวเองสอน)
  */
-exports.uploadModuleContent = async (req, res) => {
+exports.listCourses = async (req, res) => {
     try {
-        const { courseId, title, url } = req.body;
-        let extractedText = "";
+        const mineOnly = req.query.mine === '1' && req.user.role === 'TEACHER';
+        const [rows] = await db.query(
+            `SELECT c.id, c.title, c.description, c.teacher_id, u.name AS teacher_name,
+                    COUNT(m.id) AS module_count, c.created_at
+             FROM courses c
+             LEFT JOIN users u ON u.id = c.teacher_id
+             LEFT JOIN modules m ON m.course_id = c.id
+             ${mineOnly ? 'WHERE c.teacher_id = ?' : ''}
+             GROUP BY c.id
+             ORDER BY c.id DESC`,
+            mineOnly ? [req.user.id] : []
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error("🔥 List Courses Error:", error);
+        res.status(500).json({ message: "ดึงรายวิชาไม่สำเร็จ" });
+    }
+};
 
-        if (req.file) {
-            const type = req.file.originalname.endsWith('.pdf') ? 'pdf' : 'docx';
-            extractedText = await parseContent(req.file, type);
-        } else if (url) {
-            extractedText = await parseContent(url, 'url');
-        } else {
-            return res.status(400).json({ message: "กรุณาอัปโหลดไฟล์หรือระบุ URL" });
+/**
+ * 2. รายละเอียดวิชา + รายการบทเรียน
+ */
+exports.getCourse = async (req, res) => {
+    try {
+        const courseId = toId(req.params.courseId);
+        const [courses] = courseId
+            ? await db.query(
+                `SELECT c.id, c.title, c.description, c.teacher_id, u.name AS teacher_name, c.created_at
+                 FROM courses c LEFT JOIN users u ON u.id = c.teacher_id WHERE c.id = ?`,
+                [courseId]
+            )
+            : [[]];
+        if (courses.length === 0) return res.status(404).json({ message: "ไม่พบวิชานี้" });
+
+        const [modules] = await db.query(
+            "SELECT id, title, created_at FROM modules WHERE course_id = ? ORDER BY id",
+            [courseId]
+        );
+        const course = courses[0];
+        res.json({ ...course, modules, can_edit: course.teacher_id === req.user.id });
+    } catch (error) {
+        console.error("🔥 Get Course Error:", error);
+        res.status(500).json({ message: "ดึงข้อมูลวิชาไม่สำเร็จ" });
+    }
+};
+
+/**
+ * 3. สร้างวิชา (ครู)
+ */
+exports.createCourse = async (req, res) => {
+    try {
+        const title = String(req.body.title || '').trim();
+        const description = String(req.body.description || '').trim();
+        const invalid = validateCourseInput(title, description);
+        if (invalid) return res.status(400).json({ message: invalid });
+
+        const [result] = await db.query(
+            "INSERT INTO courses (title, description, teacher_id) VALUES (?, ?, ?)",
+            [title, description || null, req.user.id]
+        );
+        res.status(201).json({ message: "สร้างวิชาสำเร็จ!", id: result.insertId });
+    } catch (error) {
+        console.error("🔥 Create Course Error:", error);
+        res.status(500).json({ message: "สร้างวิชาไม่สำเร็จ" });
+    }
+};
+
+/**
+ * 4. แก้ไขวิชา (เฉพาะเจ้าของ)
+ */
+exports.updateCourse = async (req, res) => {
+    try {
+        const course = await findOwnedCourse(req, res, req.params.courseId);
+        if (!course) return;
+
+        const title = String(req.body.title || '').trim();
+        const description = String(req.body.description || '').trim();
+        const invalid = validateCourseInput(title, description);
+        if (invalid) return res.status(400).json({ message: invalid });
+
+        await db.query("UPDATE courses SET title = ?, description = ? WHERE id = ?",
+            [title, description || null, course.id]);
+        res.json({ message: "บันทึกการแก้ไขแล้ว" });
+    } catch (error) {
+        console.error("🔥 Update Course Error:", error);
+        res.status(500).json({ message: "แก้ไขวิชาไม่สำเร็จ" });
+    }
+};
+
+/**
+ * 5. ลบวิชา (เฉพาะเจ้าของ) — บทเรียน ข้อสอบ และ cache ในวิชาจะถูกลบตามไปด้วย
+ */
+exports.deleteCourse = async (req, res) => {
+    try {
+        const course = await findOwnedCourse(req, res, req.params.courseId);
+        if (!course) return;
+
+        await db.query("DELETE FROM courses WHERE id = ?", [course.id]);
+        res.json({ message: "ลบวิชาแล้ว" });
+    } catch (error) {
+        console.error("🔥 Delete Course Error:", error);
+        res.status(500).json({ message: "ลบวิชาไม่สำเร็จ" });
+    }
+};
+
+/**
+ * 6. เพิ่มบทเรียนในวิชา (เฉพาะเจ้าของ)
+ * เนื้อหามาจาก 1 ใน 3 แหล่ง: ไฟล์ (PDF/DOCX/TXT), URL หรือข้อความที่พิมพ์เอง (text)
+ */
+exports.createModule = async (req, res) => {
+    try {
+        const course = await findOwnedCourse(req, res, req.params.courseId);
+        if (!course) return;
+
+        const title = String(req.body.title || '').trim();
+        const url = String(req.body.url || '').trim();
+        const text = String(req.body.text || '');
+        if (!title || title.length > 255) {
+            return res.status(400).json({ message: "กรุณากรอกชื่อบทเรียน (ไม่เกิน 255 ตัวอักษร)" });
+        }
+
+        let extractedText;
+        try {
+            if (req.file) extractedText = await parseFile(req.file);
+            else if (url) extractedText = await parseUrl(url);
+            else if (text.trim()) extractedText = text;
+            else return res.status(400).json({ message: "กรุณาอัปโหลดไฟล์ ระบุ URL หรือพิมพ์เนื้อหา" });
+        } catch (parseError) {
+            console.error("🔥 Parse Error:", parseError);
+            return res.status(400).json({ message: "อ่านเนื้อหาจากไฟล์หรือ URL ไม่สำเร็จ" });
+        }
+
+        extractedText = cleanText(extractedText);
+        if (!extractedText) {
+            return res.status(400).json({ message: "ไม่พบข้อความในเนื้อหา (ไฟล์ PDF ที่เป็นภาพสแกนยังไม่รองรับ)" });
+        }
+        if (extractedText.length > MAX_CONTENT_LENGTH) {
+            return res.status(400).json({
+                message: `เนื้อหายาวเกินไป (${extractedText.length.toLocaleString()} ตัวอักษร, สูงสุด ${MAX_CONTENT_LENGTH.toLocaleString()}) กรุณาแบ่งเป็นหลายบทเรียน`
+            });
         }
 
         const [result] = await db.query(
             "INSERT INTO modules (course_id, title, original_content) VALUES (?, ?, ?)",
-            [courseId, title, extractedText]
+            [course.id, title, extractedText]
         );
-
-        res.status(201).json({ message: "นำเข้าเนื้อหาสำเร็จ!", moduleId: result.insertId });
+        res.status(201).json({ message: "เพิ่มบทเรียนสำเร็จ!", id: result.insertId });
     } catch (error) {
-        console.error("🔥 Upload Error:", error);
-        res.status(500).json({ message: "เกิดข้อผิดพลาดในการนำเข้าเนื้อหา" });
-    }
-};
-
-/**
- * 2. นำเข้าข้อสอบอัจฉริยะ (Smart Quiz)
- */
-exports.importSmartQuiz = async (req, res) => {
-    try {
-        const { moduleId, rawText } = req.body;
-        const quizData = await aiService.parseQuizWithAI(rawText); 
-        
-        if (!quizData || !Array.isArray(quizData)) {
-            throw new Error("รูปแบบข้อมูลจาก AI ไม่ถูกต้อง");
-        }
-
-        const values = quizData.map(q => [
-            parseInt(moduleId),
-            q.question, 
-            q.option_a, 
-            q.option_b, 
-            q.option_c, 
-            q.option_d, 
-            q.correct_answer
-        ]);
-
-        if (values.length > 0) {
-            const query = "INSERT INTO quizzes (module_id, question, option_a, option_b, option_c, option_d, correct_answer) VALUES ?";
-            await db.query(query, [values]); 
-        }
-
-        res.status(200).json({ success: true, message: `นำเข้าข้อสอบสำเร็จ ${quizData.length} ข้อ!` });
-    } catch (error) {
-        console.error("🔥 Import Quiz Error:", error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-/**
- * 3. ดึงเนื้อหาแบบเลือกสไตล์ (Student)
- */
-exports.getModuleContentByStyle = async (req, res) => {
-    try {
-        const { moduleId } = req.params;
-        const { style } = req.query;
-
-        const [modules] = await db.query("SELECT * FROM modules WHERE id = ?", [moduleId]);
-        if (modules.length === 0) return res.status(404).json({ message: "ไม่พบเนื้อหา" });
-
-        const originalText = modules[0].original_content;
-        const styledContent = await aiService.getStyledContent(moduleId, style, originalText);
-
-        res.json({
-            success: true,
-            title: modules[0].title,
-            content: styledContent,
-            styleType: style
-        });
-    } catch (error) {
-        console.error("🔥 Style Content Error:", error);
-        res.status(500).json({ message: "ไม่สามารถสร้างเนื้อหาในสไตล์นี้ได้" });
-    }
-};
-
-/**
- * 4. การจัดการรายวิชาสำหรับ Dashboard
- */
-
-// ดึงรายวิชาทั้งหมดมาโชว์ที่หน้า Dashboard
-exports.getAllModules = async (req, res) => {
-    try {
-        // ดึงเฉพาะ id และ title เพื่อป้องกัน Error 500 จากคอลัมน์ description ที่ไม่มีใน DB
-        const [rows] = await db.query("SELECT id, title FROM modules ORDER BY id DESC");
-        res.json(rows);
-    } catch (error) {
-        console.error("🔥 Database Error:", error.message);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-// ดึงรายละเอียด Module เดียว
-exports.getModuleById = async (req, res) => {
-    try {
-        const [rows] = await db.query("SELECT * FROM modules WHERE id = ?", [req.params.moduleId]);
-        if (rows.length === 0) return res.status(404).json({ message: "Module not found" });
-        res.json(rows[0]);
-    } catch (error) {
-        console.error("🔥 Fetch Error:", error);
-        res.status(500).json({ message: "Error fetching module details" });
-    }
-};
-
-/**
- * 5. การจัดการข้อสอบ
- */
-
-exports.getModuleQuizzes = async (req, res) => {
-    try {
-        const { moduleId } = req.params;
-        // ส่งเฉลยให้เฉพาะครู นักเรียนจะไม่เห็น correct_answer
-        const columns = req.user.role === 'TEACHER'
-            ? "*"
-            : "id, module_id, question, option_a, option_b, option_c, option_d";
-        const [quizzes] = await db.query(`SELECT ${columns} FROM quizzes WHERE module_id = ?`, [moduleId]);
-        res.json(quizzes);
-    } catch (error) {
-        res.status(500).json({ message: "ดึงข้อสอบไม่สำเร็จ" });
-    }
-};
-
-exports.createQuiz = async (req, res) => {
-    try {
-        const { moduleId, questions } = req.body;
-        const values = questions.map(q => [
-            moduleId, q.question, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer
-        ]);
-        await db.query("INSERT INTO quizzes (module_id, question, option_a, option_b, option_c, option_d, correct_answer) VALUES ?", [values]);
-        res.status(201).json({ message: "บันทึกข้อสอบสำเร็จ!" });
-    } catch (error) {
-        res.status(500).json({ message: "ไม่สามารถบันทึกข้อสอบได้" });
+        console.error("🔥 Create Module Error:", error);
+        res.status(500).json({ message: "เพิ่มบทเรียนไม่สำเร็จ" });
     }
 };

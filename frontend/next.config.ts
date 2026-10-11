@@ -6,6 +6,11 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    // Next.js ตัด body ที่ส่งต่อไป Backend ไว้ที่ 10MB โดยค่าเริ่มต้น
+    // ตั้งให้มากกว่าขนาดไฟล์สูงสุดของ Backend (10MB) เล็กน้อย เพื่อให้ Backend เป็นคนตอบว่า "ไฟล์ใหญ่เกินไป"
+    proxyClientMaxBodySize: "12mb",
+  },
   turbopack: {
     rules: {
       "*.css": {

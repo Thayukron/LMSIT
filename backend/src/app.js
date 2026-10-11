@@ -4,6 +4,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/auth.routes');
 const courseRoutes = require('./routes/course.routes');
+const moduleRoutes = require('./routes/module.routes');
 
 // ต้องมี JWT_SECRET ไม่งั้นระบบ login จะไม่ปลอดภัย
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
@@ -16,13 +17,14 @@ const app = express();
 // --- Middlewares ---
 // อนุญาตเฉพาะ Frontend ของเรา (ปกติ Frontend เรียกผ่าน rewrites ของ Next.js อยู่แล้ว จึงเป็นโดเมนเดียวกัน)
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
-app.use(express.json()); // ช่วยให้ Server อ่านข้อมูลแบบ JSON ที่ส่งมาจากหน้าบ้านได้
+app.use(express.json({ limit: '2mb' })); // อ่าน JSON จากหน้าบ้าน (เผื่อเนื้อหาบทเรียนยาวๆ)
 app.use(express.urlencoded({ extended: true })); // สำหรับข้อมูลจาก Form
 app.use(cookieParser()); // อ่าน JWT จาก cookie
 
 // --- Routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/modules', moduleRoutes);
 
 // --- 404 ---
 app.use((req, res) => {
